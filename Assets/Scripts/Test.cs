@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+using Serialization;
+
 public class Test : MonoBehaviour
 {
 	// Use this for initialization
