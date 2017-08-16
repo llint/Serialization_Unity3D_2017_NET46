@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System.IO;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -31,6 +32,8 @@ public class Test : MonoBehaviour
 		Base o2;
 		si.Deserialize(out o2);
 		Debug.Log($"o2.i={o2.i}, o2.s={o2.s}");
+
+		SerializationCodeGenerator.GenerateCode(Path.Combine(Application.dataPath, "Scripts/Serialization_Generated.cs"));
 	}
 
 	// Update is called once per frame

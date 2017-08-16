@@ -114,18 +114,19 @@ namespace Serialization
             foreach (var type in basicTypes)
             {
                 bodyTypeDeserializeMethodMapping
-                    .AddLine($"{{ typeof(type.Name), typeof(SerializationInput).GetMethod(\"Deserialize\", new[]{{typeof({type.Name}).MakeByRefType()}}) }},");
+                    .AddLine($"{{ typeof({type.Name}), typeof(SerializationInput).GetMethod(\"Deserialize\", new[]{{typeof({type.Name}).MakeByRefType()}}) }},");
             }
 
             // TODO: all the [Serializable] types
         }
 
-        internal static void GenerateCode(string filePath)
+        internal static void GenerateCode(string file)
         {
             var doc = new CodeGen.CodeGroup();
 
             doc.AddLine("using System;");
             doc.AddLine("using System.Linq;");
+            doc.AddLine("using System.Reflection;");
             doc.AddLine("using System.Collections.Generic;");
             doc.AddLine();
             doc.AddLine("using UnityEngine;");
@@ -136,6 +137,8 @@ namespace Serialization
             GeneratePartialSerializationInputClass(bodyNameSpace);
 
             GenerateTypeSerializationMethodMapping(bodyNameSpace);
+
+            File.WriteAllText(file, doc.Content);
         }
     }
 
