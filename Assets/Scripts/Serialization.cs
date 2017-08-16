@@ -11,9 +11,9 @@ using UnityEngine;
 
 namespace Serialization
 {
-    static class BasicSerializationTypes
+    static class SerializationCodeGenerator
     {
-        internal static readonly Type[] SerializationTypes = new Type[] {
+        static readonly Type[] basicSerializationTypes = new Type[] {
             typeof(Boolean),
             typeof(Char),
             typeof(Int16),
@@ -25,6 +25,62 @@ namespace Serialization
             typeof(Single),
             typeof(Double),
         };
+
+        static void GeneratePartialSerializationOutputClass(CodeGen.CodeBlock bodyNameSpace)
+        {
+            var bodySerializationOutputClass =
+                bodyNameSpace.AddLine("partial class SerializationOutput").AddBlock();
+
+            foreach (var type in basicSerializationTypes)
+            {
+                var bodySerializeMethod = bodySerializationOutputClass
+                    .AddLine($"public SerializationOutput Serialize({type.Name} value)")
+                    .AddBlock();
+                bodySerializeMethod.AddLine("var buffer = BitConverter.GetBytes(value);");
+                bodySerializeMethod.AddLine("stream.Write(buffer, 0, buffer.Length);");
+                bodySerializeMethod.AddLine("return this;");
+            }
+
+            // TODO: for all the types that are marked with "[Serializable]", add the "Serialize" method
+        }
+
+        static void GeneratePartialSerializationInputClass(CodeGen.CodeBlock bodyNameSpace)
+        {
+            var bodySerializationInputClass =
+                bodyNameSpace.AddLine("partial class SerializationInput").AddBlock();
+
+            foreach (var type in basicSerializationTypes)
+            {
+                var bodyDeserializeMethod = bodySerializationInputClass
+                    .AddLine($"public SerializationInput Deserialize(out {type.Name} value)")
+                    .AddBlock();
+                bodyDeserializeMethod.AddLine($"var buffer = BitConverter.GetBytes(default({type.Name}));");
+                var bodyIf = bodyDeserializeMethod
+                    .AddLine("if (stream.Read(buffer, 0, buffer.Length) == buffer.Length)")
+                    .AddBlock();
+                bodyIf.AddLine($"value = BitConverter.To{type.Name}(buffer, 0);");
+                bodyIf.AddLine("return this;");
+                bodyDeserializeMethod.AddLine("throw new SerializationException();");
+            }
+
+            // TODO: for all the types that are marked with "[Serializable]", add the "Deserialize" method
+        }
+
+        internal static void GenerateCode(string filePath)
+        {
+            var doc = new CodeGen.CodeGroup();
+
+            doc.AddLine("using System;");
+            doc.AddLine("using System.Linq;");
+            doc.AddLine("using System.Collections.Generic;");
+            doc.AddLine();
+            doc.AddLine("using UnityEngine;");
+            doc.AddLine();
+            var bodyNameSpace = doc.AddLine("namespace Serialization").AddBlock();
+
+            GeneratePartialSerializationOutputClass(bodyNameSpace);
+            GeneratePartialSerializationInputClass(bodyNameSpace);
+        }
     }
 
     static class SerializationHelper<T>
