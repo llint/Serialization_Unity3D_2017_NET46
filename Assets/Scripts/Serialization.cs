@@ -13,7 +13,7 @@ namespace Serialization
 {
     static class SerializationCodeGenerator
     {
-        static readonly Type[] basicSerializationTypes = new Type[] {
+        static readonly Type[] types4CodeGen = new Type[] {
             typeof(Boolean),
             typeof(Char),
             typeof(Int16),
@@ -26,12 +26,31 @@ namespace Serialization
             typeof(Double),
         };
 
+        static readonly Type[] basicTypes = new Type[] {
+            // types that are the same as types4CodeGen
+            typeof(Boolean),
+            typeof(Char),
+            typeof(Int16),
+            typeof(UInt16),
+            typeof(Int32),
+            typeof(UInt32),
+            typeof(Int64),
+            typeof(UInt64),
+            typeof(Single),
+            typeof(Double),
+
+            // below are the types that I hand-coded
+            typeof(Byte),
+            typeof(SByte),
+            typeof(String),
+        };
+
         static void GeneratePartialSerializationOutputClass(CodeGen.CodeBlock bodyNameSpace)
         {
             var bodySerializationOutputClass =
                 bodyNameSpace.AddLine("partial class SerializationOutput").AddBlock();
 
-            foreach (var type in basicSerializationTypes)
+            foreach (var type in types4CodeGen)
             {
                 var bodySerializeMethod = bodySerializationOutputClass
                     .AddLine($"public SerializationOutput Serialize({type.Name} value)")
@@ -49,7 +68,7 @@ namespace Serialization
             var bodySerializationInputClass =
                 bodyNameSpace.AddLine("partial class SerializationInput").AddBlock();
 
-            foreach (var type in basicSerializationTypes)
+            foreach (var type in types4CodeGen)
             {
                 var bodyDeserializeMethod = bodySerializationInputClass
                     .AddLine($"public SerializationInput Deserialize(out {type.Name} value)")
@@ -66,6 +85,11 @@ namespace Serialization
             // TODO: for all the types that are marked with "[Serializable]", add the "Deserialize" method
         }
 
+        static void GenerateTypeSerializationMethodMapping(CodeGen.CodeBlock bodyNameSpace)
+        {
+
+        }
+
         internal static void GenerateCode(string filePath)
         {
             var doc = new CodeGen.CodeGroup();
@@ -80,6 +104,26 @@ namespace Serialization
 
             GeneratePartialSerializationOutputClass(bodyNameSpace);
             GeneratePartialSerializationInputClass(bodyNameSpace);
+
+            GenerateTypeSerializationMethodMapping(bodyNameSpace);
+        }
+    }
+
+    static partial class TypeSerializationMethodMapping
+    {
+        internal static Dictionary<Type, MethodInfo> TypeSerializeMethodMapping = new Dictionary<Type, MethodInfo>();
+        internal static Dictionary<Type, MethodInfo> TypeDeserializeMethodMapping = new Dictionary<Type, MethodInfo>();
+
+        internal static void Init()
+        {
+            TypeSerializeMethodMapping = new Dictionary<Type, MethodInfo> {
+            {typeof(int), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(int)})},
+            {typeof(string), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(string)})},
+        };
+            TypeDeserializeMethodMapping = new Dictionary<Type, MethodInfo> {
+            {typeof(int), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(int).MakeByRefType()})},
+            {typeof(string), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(string).MakeByRefType()})},
+        };
         }
     }
 
