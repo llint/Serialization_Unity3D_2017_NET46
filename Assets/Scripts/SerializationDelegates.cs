@@ -26,24 +26,4 @@ namespace Serialization
         };
         }
     }
-
-    class Base
-    {
-        public int i = 0;
-        public string s = "";
-    }
-
-    ///////////////////////////////////////////////////////////////////////////////
-    // Generated
-
-    partial class SerializationOutput
-    {
-        // Could this method be a generics? - no generics
-    }
-
-    partial class SerializationInput
-    {
-        // Could this method be a generics? - no generics
-    }
-
 }

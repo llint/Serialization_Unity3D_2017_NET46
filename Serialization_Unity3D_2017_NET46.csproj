@@ -109,6 +109,7 @@
   <ItemGroup>
     <Compile Include="Assets\Scripts\CodeGen.cs" />
     <Compile Include="Assets\Scripts\Serialization.cs" />
+    <Compile Include="Assets\Scripts\Serialization_Generated.cs" />
     <Compile Include="Assets\Scripts\SerializationDelegates.cs" />
     <Compile Include="Assets\Scripts\Test.cs" />
   </ItemGroup>

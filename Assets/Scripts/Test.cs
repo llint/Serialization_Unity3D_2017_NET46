@@ -4,6 +4,12 @@ using UnityEngine;
 
 using Serialization;
 
+class Base
+{
+    public int i = 0;
+    public string s = "";
+}
+
 public class Test : MonoBehaviour
 {
 	// Use this for initialization
