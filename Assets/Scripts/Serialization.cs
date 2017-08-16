@@ -87,7 +87,37 @@ namespace Serialization
 
         static void GenerateTypeSerializationMethodMapping(CodeGen.CodeBlock bodyNameSpace)
         {
+            var bodyTypeSerializationMethodMappingClass =
+                bodyNameSpace.AddLine("static partial class TypeSerializationMethodMapping")
+                .AddBlock();
 
+            var bodyInitializeMapping =
+                bodyTypeSerializationMethodMappingClass.AddLine("static partial void InitializeMapping()")
+                .AddBlock();
+
+            var bodyTypeSerializeMethodMapping =
+                bodyInitializeMapping.AddLine("TypeSerializeMethodMapping = new Dictionary<Type, MethodInfo>")
+                .AddBlock()
+                .WithSemicolon();
+            foreach (var type in basicTypes)
+            {
+                bodyTypeSerializeMethodMapping
+                    .AddLine($"{{ typeof({type.Name}), typeof(SerializationOutput).GetMethod(\"Serialize\", new[]{{typeof({type.Name})}}) }},");
+            }
+
+            // TODO: all the [Serializable] types
+
+            var bodyTypeDeserializeMethodMapping =
+                bodyInitializeMapping.AddLine("TypeDeserializeMethodMapping = new Dictionary<Type, MethodInfo>")
+                .AddBlock()
+                .WithSemicolon();
+            foreach (var type in basicTypes)
+            {
+                bodyTypeDeserializeMethodMapping
+                    .AddLine($"{{ typeof(type.Name), typeof(SerializationInput).GetMethod(\"Deserialize\", new[]{{typeof({type.Name}).MakeByRefType()}}) }},");
+            }
+
+            // TODO: all the [Serializable] types
         }
 
         internal static void GenerateCode(string filePath)
@@ -111,20 +141,17 @@ namespace Serialization
 
     static partial class TypeSerializationMethodMapping
     {
-        internal static Dictionary<Type, MethodInfo> TypeSerializeMethodMapping = new Dictionary<Type, MethodInfo>();
-        internal static Dictionary<Type, MethodInfo> TypeDeserializeMethodMapping = new Dictionary<Type, MethodInfo>();
+        internal static Dictionary<Type, MethodInfo> TypeSerializeMethodMapping
+            = new Dictionary<Type, MethodInfo>();
+        internal static Dictionary<Type, MethodInfo> TypeDeserializeMethodMapping
+            = new Dictionary<Type, MethodInfo>();
 
-        internal static void Init()
+        static TypeSerializationMethodMapping()
         {
-            TypeSerializeMethodMapping = new Dictionary<Type, MethodInfo> {
-            {typeof(int), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(int)})},
-            {typeof(string), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(string)})},
-        };
-            TypeDeserializeMethodMapping = new Dictionary<Type, MethodInfo> {
-            {typeof(int), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(int).MakeByRefType()})},
-            {typeof(string), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(string).MakeByRefType()})},
-        };
+            InitializeMapping();
         }
+
+        static partial void InitializeMapping();
     }
 
     static class SerializationHelper<T>

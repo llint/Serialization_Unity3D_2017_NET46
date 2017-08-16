@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Reflection;
 using System.Collections;
 using System.Collections.Generic;
 
@@ -183,6 +184,23 @@ namespace Serialization
         {
             SerializationHelper<Base>.Deserialize(this, out o);
             return this;
+        }
+    }
+
+    static partial class TypeSerializationMethodMapping
+    {
+        static partial void InitializeMapping()
+        {
+            TypeSerializeMethodMapping = new Dictionary<Type, MethodInfo>
+            {
+                {typeof(int), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(int)})},
+                {typeof(string), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(string)})},
+            };
+            TypeDeserializeMethodMapping = new Dictionary<Type, MethodInfo>
+            {
+                {typeof(int), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(int).MakeByRefType()})},
+                {typeof(string), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(string).MakeByRefType()})},
+            };
         }
     }
 }

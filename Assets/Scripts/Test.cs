@@ -17,7 +17,7 @@ public class Test : MonoBehaviour
 	{
 		Debug.Log("Hello Unity 2017.1");
 
-		TypeSerializationMethodMapping.Init();
+		// TypeSerializationMethodMapping.InitializeMapping();
 
 		// the initialization code needs to be generated
 		SerializationHelper<Base>.CreateDelegate_Serialize();
