@@ -11,6 +11,16 @@ using UnityEngine;
 
 namespace Serialization
 {
+    static partial class Serialization
+    {
+        internal static void Initialize()
+        {
+            InitializeImpl();
+        }
+
+        static partial void InitializeImpl();
+    }
+
     static class SerializationCodeGenerator
     {
         static readonly Type[] types4CodeGen = new Type[] {
@@ -26,7 +36,7 @@ namespace Serialization
             typeof(Double),
         };
 
-        static readonly Type[] basicTypes = new Type[] {
+        static readonly Type[] fundamentalTypes = new Type[] {
             // types that are the same as types4CodeGen
             typeof(Boolean),
             typeof(Char),
@@ -45,6 +55,68 @@ namespace Serialization
             typeof(String),
         };
 
+        static readonly Type[] serializableTypes = new Type[0];
+
+        static SerializationCodeGenerator()
+        {
+            serializableTypes = Assembly.GetExecutingAssembly().GetTypes()
+                .Where(type => type.GetCustomAttributes(typeof(SerializableAttribute), false).Length > 0)
+                .ToArray();
+        }
+
+        static string GetStringRep(Type t, bool processDeclaringType = true)
+        {
+            if (t.IsArray)
+            {
+                return GetStringRep(t.GetElementType()) + "[]";
+            }
+            if (t.IsGenericType)
+            {
+                var genericArgs = t.GetGenericArguments().ToList();
+
+                return GetStringRep(t, genericArgs);
+            }
+            if (processDeclaringType && t.DeclaringType != null)
+            {
+                return GetStringRep(t.DeclaringType) + "." + GetStringRep(t, false);
+            }
+
+            return t.Name;
+        }
+
+        static string GetStringRep(Type t, List<Type> availableArguments)
+        {
+            if (t.IsGenericType)
+            {
+                string value = t.Name;
+                if (value.IndexOf("`") > -1)
+                {
+                    value = value.Substring(0, value.IndexOf("`"));
+                }
+
+                // Build the type arguments (if any)
+                string argString = "";
+                var thisTypeArgs = t.GetGenericArguments();
+                for (int i = 0; i < thisTypeArgs.Length && availableArguments.Count > 0; i++)
+                {
+                    if (i != 0) argString += ", ";
+
+                    argString += GetStringRep(availableArguments[0]);
+                    availableArguments.RemoveAt(0);
+                }
+
+                // If there are type arguments, add them with < >
+                if (argString.Length > 0)
+                {
+                    value += "<" + argString + ">";
+                }
+
+                return value;
+            }
+
+            return t.Name;
+        }
+
         static void GeneratePartialSerializationOutputClass(CodeGen.CodeBlock bodyNameSpace)
         {
             var bodySerializationOutputClass =
@@ -60,7 +132,15 @@ namespace Serialization
                 bodySerializeMethod.AddLine("return this;");
             }
 
-            // TODO: for all the types that are marked with "[Serializable]", add the "Serialize" method
+            // For all the types that are marked with "[Serializable]", add the "Serialize" method
+            foreach (var type in serializableTypes)
+            {
+                var bodySerializeMethod = bodySerializationOutputClass
+                    .AddLine($"public SerializationOutput Serialize({GetStringRep(type)} value)")
+                    .AddBlock();
+                bodySerializeMethod
+                    .AddLine($"return SerializationHelper<{GetStringRep(type)}>.Serialize(this, value);");
+            }
         }
 
         static void GeneratePartialSerializationInputClass(CodeGen.CodeBlock bodyNameSpace)
@@ -82,7 +162,15 @@ namespace Serialization
                 bodyDeserializeMethod.AddLine("throw new SerializationException();");
             }
 
-            // TODO: for all the types that are marked with "[Serializable]", add the "Deserialize" method
+            // For all the types that are marked with "[Serializable]", add the "Deserialize" method
+            foreach (var type in serializableTypes)
+            {
+                var bodyDeserializeMethod = bodySerializationInputClass
+                    .AddLine($"public SerializationInput Deserialize(out {GetStringRep(type)} value)")
+                    .AddBlock();
+                bodyDeserializeMethod
+                    .AddLine($"return SerializationHelper<{GetStringRep(type)}>.Deserialize(this, out value);");
+            }
         }
 
         static void GenerateTypeSerializationMethodMapping(CodeGen.CodeBlock bodyNameSpace)
@@ -99,25 +187,45 @@ namespace Serialization
                 bodyInitializeMapping.AddLine("TypeSerializeMethodMapping = new Dictionary<Type, MethodInfo>")
                 .AddBlock()
                 .WithSemicolon();
-            foreach (var type in basicTypes)
+            foreach (var type in fundamentalTypes)
             {
                 bodyTypeSerializeMethodMapping
                     .AddLine($"{{ typeof({type.Name}), typeof(SerializationOutput).GetMethod(\"Serialize\", new[]{{typeof({type.Name})}}) }},");
             }
-
-            // TODO: all the [Serializable] types
+            foreach (var type in serializableTypes)
+            {
+                bodyTypeSerializeMethodMapping
+                    .AddLine($"{{ typeof({GetStringRep(type)}), typeof(SerializationOutput).GetMethod(\"Serialize\", new[]{{typeof({GetStringRep(type)})}}) }},");
+            }
 
             var bodyTypeDeserializeMethodMapping =
                 bodyInitializeMapping.AddLine("TypeDeserializeMethodMapping = new Dictionary<Type, MethodInfo>")
                 .AddBlock()
                 .WithSemicolon();
-            foreach (var type in basicTypes)
+            foreach (var type in fundamentalTypes)
             {
                 bodyTypeDeserializeMethodMapping
                     .AddLine($"{{ typeof({type.Name}), typeof(SerializationInput).GetMethod(\"Deserialize\", new[]{{typeof({type.Name}).MakeByRefType()}}) }},");
             }
+            foreach (var type in serializableTypes)
+            {
+                bodyTypeDeserializeMethodMapping
+                    .AddLine($"{{ typeof({GetStringRep(type)}), typeof(SerializationInput).GetMethod(\"Deserialize\", new[]{{typeof({GetStringRep(type)}).MakeByRefType()}}) }},");
+            }
+        }
 
-            // TODO: all the [Serializable] types
+        static void GenerateGlobalInitializationImpl(CodeGen.CodeBlock bodyNameSpace)
+        {
+            var bodySerializationClass = bodyNameSpace
+                .AddLine("static partial class Serialization")
+                .AddBlock();
+            var bodyInitializeImplMethod = bodySerializationClass
+                .AddLine("static partial void InitializeImpl()")
+                .AddBlock();
+            foreach (var type in serializableTypes)
+            {
+                bodyInitializeImplMethod.AddLine($"SerializationHelper<{GetStringRep(type)}>.CreateDelegates();");
+            }
         }
 
         internal static void GenerateCode(string file)
@@ -137,6 +245,8 @@ namespace Serialization
             GeneratePartialSerializationInputClass(bodyNameSpace);
 
             GenerateTypeSerializationMethodMapping(bodyNameSpace);
+
+            GenerateGlobalInitializationImpl(bodyNameSpace);
 
             File.WriteAllText(file, doc.Content);
         }
@@ -165,8 +275,14 @@ namespace Serialization
         internal static Delegate_Serialize Serialize { get; private set; }
         internal static Delegate_Deserialize Deserialize { get; private set; }
 
+        internal static void CreateDelegates()
+        {
+            CreateDelegate_Serialize();
+            CreateDelegate_Deserialize();
+        }
+
         // (so, o) => so.Serialize(o.i).Serialize(o.s).Serialize(o.a);
-        internal static void CreateDelegate_Serialize()
+        static void CreateDelegate_Serialize()
         {
             var type = typeof(T);
             ParameterExpression so = Expression.Parameter(typeof(SerializationOutput), "so");
@@ -191,7 +307,7 @@ namespace Serialization
 
         // (si, out o) => { o = new Base(); return si.Deserialize(o.i).Deserialize(o.s); }
         // it could also be "(si, out o) => { o = new Base(); si.Deserialize(o.i).Deserialize(o.s); return si; }"
-        internal static void CreateDelegate_Deserialize()
+        static void CreateDelegate_Deserialize()
         {
             var type = typeof(T);
             ParameterExpression si = Expression.Parameter(typeof(SerializationInput), "si");
@@ -265,6 +381,9 @@ namespace Serialization
             stream.Write(buffer, 0, buffer.Length);
             return this;
         }
+
+        // TODO: for [Serializable] struct types, we need to attach the "ref" keyword
+        // the SerializationHelper also needs to take this into account when generating expressions
     }
 
     partial class SerializationInput
