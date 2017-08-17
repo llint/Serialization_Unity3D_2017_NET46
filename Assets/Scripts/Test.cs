@@ -11,6 +11,13 @@ public class Base
 {
     public int i = 0;
     public string s = "";
+
+	public Struct v;
+
+	public override string ToString()
+	{
+		return $"Base: i={i}, s={s}, v={v}";
+	}
 }
 
 [Serializable]
@@ -18,6 +25,11 @@ public struct Struct
 {
 	public int i;
 	public string s;
+
+	public override string ToString()
+	{
+		return $"Struct: i={i}, s={s}";
+	}
 }
 
 public class Test : MonoBehaviour
@@ -31,13 +43,14 @@ public class Test : MonoBehaviour
         Serialization.Serialization.Initialize();
 
         SerializationOutput so = new SerializationOutput();
-        Struct o = new Struct { i = 42, s = "hello" };
+        Base o = new Base { i = 42, s = "hello", v = new Struct { i = 888, s = "xxx" } };
         so.Serialize(o);
 
         SerializationInput si = new SerializationInput(so.GetStream());
-        Struct o2;
+        Base o2;
         si.Deserialize(out o2);
-        Debug.Log($"o2.i={o2.i}, o2.s={o2.s}");
+
+        Debug.Log($"o2: {o2}");
     }
 
     // Update is called once per frame
