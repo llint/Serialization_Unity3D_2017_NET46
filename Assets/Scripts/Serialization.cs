@@ -382,6 +382,14 @@ namespace Serialization
             return this;
         }
 
+        public SerializationOutput Serialize(byte[] buffer)
+        {
+            var n = buffer.Length;
+            Serialize(n);
+            stream.Write(buffer, 0, buffer.Length);
+            return this;
+        }
+
         // NB: for [Serializable] struct types, Serialize would do a struct value copy
         // While we can get around the copying by attaching a "ref" keyword when serializing a struct,
         // I don't really feel the extra complexity is worthwhile - remember, structs are meant to be
@@ -436,6 +444,18 @@ namespace Serialization
                 return this;
             }
             throw new SerializationException();
+        }
+
+        public SerializationInput Deserialize(out byte[] buffer)
+        {
+            int n = 0;
+            Deserialize(out n);
+            buffer = new byte[n];
+            if (stream.Read(buffer, 0, buffer.Length) != buffer.Length)
+            {
+                throw new SerializationException();
+            }
+            return this;
         }
     }
 }
