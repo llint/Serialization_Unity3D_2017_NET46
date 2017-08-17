@@ -73,6 +73,10 @@ namespace Serialization
         {
             return SerializationHelper<Base>.Serialize(this, value);
         }
+        public SerializationOutput Serialize(Struct value)
+        {
+            return SerializationHelper<Struct>.Serialize(this, value);
+        }
     }
     partial class SerializationInput
     {
@@ -180,6 +184,10 @@ namespace Serialization
         {
             return SerializationHelper<Base>.Deserialize(this, out value);
         }
+        public SerializationInput Deserialize(out Struct value)
+        {
+            return SerializationHelper<Struct>.Deserialize(this, out value);
+        }
     }
     static partial class TypeSerializationMethodMapping
     {
@@ -201,6 +209,7 @@ namespace Serialization
                 { typeof(SByte), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(SByte)}) },
                 { typeof(String), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(String)}) },
                 { typeof(Base), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(Base)}) },
+                { typeof(Struct), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(Struct)}) },
             };
             TypeDeserializeMethodMapping = new Dictionary<Type, MethodInfo>
             {
@@ -218,6 +227,7 @@ namespace Serialization
                 { typeof(SByte), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(SByte).MakeByRefType()}) },
                 { typeof(String), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(String).MakeByRefType()}) },
                 { typeof(Base), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(Base).MakeByRefType()}) },
+                { typeof(Struct), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(Struct).MakeByRefType()}) },
             };
         }
     }
@@ -226,6 +236,7 @@ namespace Serialization
         static partial void InitializeImpl()
         {
             SerializationHelper<Base>.CreateDelegates();
+            SerializationHelper<Struct>.CreateDelegates();
         }
     }
 }

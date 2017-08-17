@@ -11,16 +11,6 @@ using UnityEngine;
 
 namespace Serialization
 {
-    static partial class Serialization
-    {
-        internal static void Initialize()
-        {
-            InitializeImpl();
-        }
-
-        static partial void InitializeImpl();
-    }
-
     public static class SerializationCodeGenerator
     {
         static readonly Type[] types4CodeGen = new Type[] {
@@ -267,6 +257,16 @@ namespace Serialization
         static partial void InitializeMapping();
     }
 
+    static partial class Serialization
+    {
+        internal static void Initialize()
+        {
+            InitializeImpl();
+        }
+
+        static partial void InitializeImpl();
+    }
+
     static class SerializationHelper<T>
     {
         internal delegate SerializationOutput Delegate_Serialize(SerializationOutput so, T o);
@@ -382,8 +382,10 @@ namespace Serialization
             return this;
         }
 
-        // TODO: for [Serializable] struct types, we need to attach the "ref" keyword
-        // the SerializationHelper also needs to take this into account when generating expressions
+        // NB: for [Serializable] struct types, Serialize would do a struct value copy
+        // While we can get around the copying by attaching a "ref" keyword when serializing a struct,
+        // I don't really feel the extra complexity is worthwhile - remember, structs are meant to be
+        // small and fast copying - complex data types should be using 'class'
     }
 
     partial class SerializationInput

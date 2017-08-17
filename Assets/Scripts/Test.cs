@@ -7,10 +7,17 @@ using UnityEngine;
 using Serialization;
 
 [Serializable]
-class Base
+public class Base
 {
     public int i = 0;
     public string s = "";
+}
+
+[Serializable]
+public struct Struct
+{
+	public int i;
+	public string s;
 }
 
 public class Test : MonoBehaviour
@@ -24,11 +31,11 @@ public class Test : MonoBehaviour
         Serialization.Serialization.Initialize();
 
         SerializationOutput so = new SerializationOutput();
-        Base o = new Base { i = 42, s = "hello" };
+        Struct o = new Struct { i = 42, s = "hello" };
         so.Serialize(o);
 
         SerializationInput si = new SerializationInput(so.GetStream());
-        Base o2;
+        Struct o2;
         si.Deserialize(out o2);
         Debug.Log($"o2.i={o2.i}, o2.s={o2.s}");
     }
