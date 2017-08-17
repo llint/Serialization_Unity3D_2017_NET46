@@ -20,9 +20,6 @@ public class Test : MonoBehaviour
     {
         Debug.Log("Hello Unity 2017.1");
 
-        SerializationCodeGenerator
-            .GenerateCode(Path.Combine(Application.dataPath, "Scripts/Serialization_Generated.txt"));
-
         // NB: only the runtime code should invoke this
         Serialization.Serialization.Initialize();
 

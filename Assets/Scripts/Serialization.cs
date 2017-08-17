@@ -21,7 +21,7 @@ namespace Serialization
         static partial void InitializeImpl();
     }
 
-    static class SerializationCodeGenerator
+    public static class SerializationCodeGenerator
     {
         static readonly Type[] types4CodeGen = new Type[] {
             typeof(Boolean),
@@ -228,7 +228,7 @@ namespace Serialization
             }
         }
 
-        internal static void GenerateCode(string file)
+        public static void GenerateCode(string file)
         {
             var doc = new CodeGen.CodeGroup();
 
