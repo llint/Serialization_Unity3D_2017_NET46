@@ -281,7 +281,7 @@ namespace Serialization
             CreateDelegate_Deserialize();
         }
 
-        static Expression GenerateSerializeExpression(Expression so, Expression value)
+        static Expression GenerateSerializeValueExpression(Expression so, Expression value)
         {
             Expression serializeExpression = null;
             MethodInfo mi;
@@ -307,42 +307,36 @@ namespace Serialization
             var lengthExpression = Expression.ArrayLength(a);
 
             // so.Serialize(a.Length)
-            {
-                var mi = TypeSerializationMethodMapping.TypeSerializeMethodMapping[typeof(int)];
-                var serializeArrayLengthExpression = Expression.Call(so, mi, lengthExpression);
-                Debug.Log(serializeArrayLengthExpression.ToString());
-                blockSerializeArrayExpressions.Add(serializeArrayLengthExpression);
-            }
+            var mi = TypeSerializationMethodMapping.TypeSerializeMethodMapping[typeof(int)];
+            var serializeArrayLengthExpression = Expression.Call(so, mi, lengthExpression);
+            Debug.Log(serializeArrayLengthExpression.ToString());
+            blockSerializeArrayExpressions.Add(serializeArrayLengthExpression);
 
             // Loop and serialize each element
-            {
-                ParameterExpression index = Expression.Parameter(typeof(int), "i");
-                LabelTarget label = Expression.Label();
+            ParameterExpression index = Expression.Parameter(typeof(int), "i");
+            LabelTarget label = Expression.Label();
 
-                BlockExpression loopBlock = Expression.Block(
-                    new[] {index},
-                    Expression.Assign(index, Expression.Constant(0)),
-                    Expression.Loop(
-                        Expression.IfThenElse(
-                            Expression.LessThan(index, lengthExpression),
-                            Expression.Block(
-                                GenerateSerializeExpression(so, Expression.ArrayIndex(a, index)),
-                                Expression.PreIncrementAssign(index)
-                            ),
-                            Expression.Break(label)
+            BlockExpression loopBlock = Expression.Block(
+                new[] { index },
+                Expression.Assign(index, Expression.Constant(0)),
+                Expression.Loop(
+                    Expression.IfThenElse(
+                        Expression.LessThan(index, lengthExpression),
+                        Expression.Block(
+                            GenerateSerializeValueExpression(so, Expression.ArrayIndex(a, index)),
+                            Expression.PreIncrementAssign(index)
                         ),
-                        label
-                    )
-                );
-                blockSerializeArrayExpressions.Add(loopBlock);
-            }
-
-            return Expression.Block(
-                blockSerializeArrayExpressions
+                        Expression.Break(label)
+                    ),
+                    label
+                )
             );
+            blockSerializeArrayExpressions.Add(loopBlock);
+
+            return Expression.Block(blockSerializeArrayExpressions);
         }
 
-        // (so, o) => {so.Serialize(o.i);so.Serialize(o.s);so.Serialize(o.a);}
+        // (so, o) => {so.Serialize(o.i);so.Serialize(o.s);so.Serialize(o.a);return so;}
         static void CreateDelegate_Serialize()
         {
             var type = typeof(T);
@@ -355,7 +349,7 @@ namespace Serialization
             {
                 MemberExpression memberExpression = Expression.Field(o, fi);
 
-                var serializeExpression = GenerateSerializeExpression(so, memberExpression);
+                var serializeExpression = GenerateSerializeValueExpression(so, memberExpression);
                 Debug.Log(serializeExpression.ToString());
                 blockExpressions.Add(serializeExpression);
             }
@@ -374,39 +368,96 @@ namespace Serialization
             Serialize = lambda.Compile();
         }
 
-        // (si, out o) => { o = new Base(); return si.Deserialize(o.i).Deserialize(o.s); }
-        // it could also be "(si, out o) => { o = new Base(); si.Deserialize(o.i).Deserialize(o.s); return si; }"
+        static Expression GenerateDeserializeValueExpression(Expression si, Expression value)
+        {
+            Expression deserializeExpression = null;
+            MethodInfo mi;
+            if (TypeSerializationMethodMapping.TypeDeserializeMethodMapping.TryGetValue(value.Type, out mi))
+            {
+                deserializeExpression = Expression.Call(si, mi, value);
+            }
+            else if (value.Type.IsArray)
+            {
+                deserializeExpression = GenerateDeserializeArrayExpression(si, value);
+            }
+            else if (value.Type.IsEnum)
+            {
+                // ...
+            }
+            return deserializeExpression;
+        }
+
+        static Expression GenerateDeserializeArrayExpression(Expression si, Expression a)
+        {
+            var blockDeserializeArrayExpressions = new List<Expression>();
+
+            ParameterExpression lengthExpression = Expression.Variable(typeof(int), "length");
+
+            var mi = TypeSerializationMethodMapping.TypeDeserializeMethodMapping[typeof(int)];
+            var deserializeArrayLengthExpression = Expression.Call(si, mi, lengthExpression);
+            Debug.Log(deserializeArrayLengthExpression.ToString());
+            blockDeserializeArrayExpressions.Add(deserializeArrayLengthExpression);
+
+            var instantiateExpression =
+                Expression.Assign(a, Expression.NewArrayBounds(a.Type.GetElementType(), lengthExpression));
+            Debug.Log(instantiateExpression.ToString());
+            blockDeserializeArrayExpressions.Add(instantiateExpression);
+
+            // Loop and serialize each element
+            ParameterExpression index = Expression.Parameter(typeof(int), "i");
+            LabelTarget label = Expression.Label();
+
+            BlockExpression loopBlock = Expression.Block(
+                new[] { index },
+                Expression.Assign(index, Expression.Constant(0)),
+                Expression.Loop(
+                    Expression.IfThenElse(
+                        Expression.LessThan(index, lengthExpression),
+                        Expression.Block(
+                            GenerateDeserializeValueExpression(si, Expression.ArrayIndex(a, index)),
+                            Expression.PreIncrementAssign(index)
+                        ),
+                        Expression.Break(label)
+                    ),
+                    label
+                )
+            );
+            blockDeserializeArrayExpressions.Add(loopBlock);
+
+            return Expression.Block(blockDeserializeArrayExpressions);
+        }
+
+        // (si, out o) => {o = new Base();si.Deserialize(out o.i);si.Deserialize(out o.s);return si;}
         static void CreateDelegate_Deserialize()
         {
             var type = typeof(T);
             ParameterExpression si = Expression.Parameter(typeof(SerializationInput), "si");
             ParameterExpression o = Expression.Parameter(type.MakeByRefType(), "o");
 
+            var blockExpressions = new List<Expression>();
+
             BinaryExpression instantiateExpression = Expression.Assign(o, Expression.New(type));
             Debug.Log(instantiateExpression.ToString());
-
-            MethodCallExpression deserializeExpression = null;
+            blockExpressions.Add(instantiateExpression);
 
             foreach (var fi in type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
             {
-                MemberExpression m = Expression.Field(o, fi);
-                deserializeExpression = Expression.Call(deserializeExpression == null ? (Expression)si : (Expression)deserializeExpression,
-                    TypeSerializationMethodMapping.TypeDeserializeMethodMapping[fi.FieldType], m);
+                MemberExpression memberExpression = Expression.Field(o, fi);
+
+                var deserializeExpression = GenerateDeserializeValueExpression(si, memberExpression);
+                Debug.Log(deserializeExpression.ToString());
+                blockExpressions.Add(deserializeExpression);
             }
 
-            Debug.Log(deserializeExpression.ToString());
-
             LabelTarget labelTarget = Expression.Label(typeof(SerializationInput));
-            GotoExpression returnExpression = Expression.Return(labelTarget, deserializeExpression, typeof(SerializationInput));
+            GotoExpression returnExpression = Expression.Return(labelTarget, si, typeof(SerializationInput));
             LabelExpression labelExpression = Expression.Label(labelTarget, si);
 
-            BlockExpression block = Expression.Block(typeof(SerializationInput),
-                instantiateExpression,
-                returnExpression, // NB: 'deserializeExpression' is embedded in the 'returnExpression"!
-                labelExpression);
-            Debug.Log(block.ToString());
+            blockExpressions.Add(returnExpression);
+            blockExpressions.Add(labelExpression);
 
-            var lambda = Expression.Lambda<Delegate_Deserialize>(block, si, o);
+            var lambda = Expression.Lambda<Delegate_Deserialize>(
+                Expression.Block(typeof(SerializationInput), blockExpressions), si, o);
             Debug.Log(lambda.ToString());
 
             Deserialize = lambda.Compile();
