@@ -429,7 +429,7 @@ namespace Serialization
                 );
                 blockDeserializeArrayExpressions.Add(loopBlock);
 
-                return Expression.Block(blockDeserializeArrayExpressions);
+                return Expression.Block(new [] {lengthExpression}, blockDeserializeArrayExpressions);
             }
 
             // (si, out o) => {o = new Base();si.Deserialize(out o.i);si.Deserialize(out o.s);return si;}
