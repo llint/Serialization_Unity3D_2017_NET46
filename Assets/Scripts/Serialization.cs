@@ -297,9 +297,19 @@ namespace Serialization
                 }
                 else if (value.Type.IsEnum)
                 {
-                    // ...
+                    serializeExpression = GenerateSerializeEnumExpression(so, value);
+                }
+                else
+                {
+                    throw new SerializationException();
                 }
                 return serializeExpression;
+            }
+
+            static Expression GenerateSerializeEnumExpression(Expression so, Expression e)
+            {
+                var mi = TypeSerializationMethodMapping.TypeSerializeMethodMapping[typeof(int)];
+                return Expression.Call(so, mi, Expression.Convert(e, typeof(int)));
             }
 
             static Expression GenereateSerializeArrayExpression(Expression so, Expression a)
@@ -387,9 +397,29 @@ namespace Serialization
                 }
                 else if (value.Type.IsEnum)
                 {
-                    // ...
+                    deserializeExpression = GenerateDeserializeEnumExpression(si, value);
+                }
+                else
+                {
+                    throw new SerializationException();
                 }
                 return deserializeExpression;
+            }
+
+            static Expression GenerateDeserializeEnumExpression(Expression si, Expression e)
+            {
+                ParameterExpression i = Expression.Variable(typeof(int), "i");
+
+                var mi = TypeSerializationMethodMapping.TypeDeserializeMethodMapping[typeof(int)];
+                MethodCallExpression deserializeExpression = Expression.Call(si, mi, i);
+
+                var assignExpression = Expression.Assign(e, Expression.Convert(i, e.Type));
+
+                return Expression.Block(
+                    new[]{i},
+                    deserializeExpression,
+                    assignExpression
+                );
             }
 
             static Expression GenerateDeserializeArrayExpression(Expression si, Expression a)
