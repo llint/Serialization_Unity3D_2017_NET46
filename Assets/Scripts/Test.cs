@@ -10,11 +10,12 @@ using Serialization;
 public class Base
 {
     public int i = 0;
-    public string s = "";
 
 	public Struct[][] v;
 
-	public override string ToString()
+    public string s = "";
+
+    public override string ToString()
 	{
 		return $"Base: i={i}, s={s}, v={v}";
 	}

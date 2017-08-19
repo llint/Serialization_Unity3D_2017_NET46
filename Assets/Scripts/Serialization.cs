@@ -419,7 +419,7 @@ namespace Serialization
                         Expression.IfThenElse(
                             Expression.LessThan(index, lengthExpression),
                             Expression.Block(
-                                GenerateDeserializeValueExpression(si, Expression.ArrayIndex(a, index)),
+                                GenerateDeserializeValueExpression(si, Expression.ArrayAccess(a, index)),
                                 Expression.PreIncrementAssign(index)
                             ),
                             Expression.Break(label)
