@@ -10,11 +10,12 @@ using Serialization;
 public class Base
 {
     public int i = 0;
+
+	public Struct[][] v;
+
     public string s = "";
 
-	public Struct v;
-
-	public override string ToString()
+    public override string ToString()
 	{
 		return $"Base: i={i}, s={s}, v={v}";
 	}
@@ -43,7 +44,7 @@ public class Test : MonoBehaviour
         Serialization.Serialization.Initialize();
 
         SerializationOutput so = new SerializationOutput();
-        Base o = new Base { i = 42, s = "hello", v = new Struct { i = 888, s = "xxx" } };
+        Base o = new Base { i = 42, s = "hello", v = new Struct[][] { new Struct[] { new Struct { i = 888, s = "xxx" } } } };
         so.Serialize(o);
 
         SerializationInput si = new SerializationInput(so.GetStream());
