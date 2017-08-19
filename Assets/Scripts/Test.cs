@@ -1,35 +1,53 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 using Serialization;
 
+public enum MyEnum { A, B, C };
+
+static class Helpers
+{
+    internal static string ToString<T>(T[] ta)
+    {
+        return $"[{string.Join(",", ta.Select(t => t.ToString()))}]";
+    }
+
+    internal static string ToString<T>(T[][] taa)
+    {
+        return $"[{string.Join(",", taa.Select(ta => ToString(ta)))}]";
+    }
+}
+
 [Serializable]
 public class Base
 {
     public int i = 0;
 
-	public Struct[][] v;
+	public Struct[][] taa;
 
-    public string s = "";
+    public string[][] saa;
 
     public override string ToString()
 	{
-		return $"Base: i={i}, s={s}, v={v}";
+		return $"Base: i={i}, taa={Helpers.ToString(taa)}, saa={Helpers.ToString(saa)}";
 	}
 }
 
 [Serializable]
 public struct Struct
 {
-	public int i;
+    public MyEnum[] ea;
+
+    public int i;
 	public string s;
 
 	public override string ToString()
 	{
-		return $"Struct: i={i}, s={s}";
+		return $"Struct: ea={Helpers.ToString(ea)}, i={i}, s={s}";
 	}
 }
 
@@ -44,7 +62,29 @@ public class Test : MonoBehaviour
         Serialization.Serialization.Initialize();
 
         SerializationOutput so = new SerializationOutput();
-        Base o = new Base { i = 42, s = "hello", v = new Struct[][] { new Struct[] { new Struct { i = 888, s = "xxx" } } } };
+        Base o = new Base {
+            i = 42,
+            saa = new string[][] {
+                new string[] {"X", "Y", "Z"},
+                new string[] {"T", "U"},
+            },
+            taa = new Struct[][] {
+                new Struct[] {
+                    new Struct {
+                        i = 888,
+                        s = "xxx",
+                        ea = new MyEnum[] {MyEnum.A, MyEnum.B, MyEnum.C},
+                    }
+                },
+                new Struct[] {
+                    new Struct {
+                        i = 666,
+                        s = "yyyy",
+                        ea = new MyEnum[] {MyEnum.C, MyEnum.B, MyEnum.A},
+                    }
+                },
+            }
+        };
         so.Serialize(o);
 
         SerializationInput si = new SerializationInput(so.GetStream());
