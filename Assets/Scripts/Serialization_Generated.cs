@@ -208,6 +208,7 @@ namespace Serialization
                 { typeof(Byte), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(Byte)}) },
                 { typeof(SByte), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(SByte)}) },
                 { typeof(String), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(String)}) },
+                { typeof(Byte[]), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(Byte[])}) },
                 { typeof(Base), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(Base)}) },
                 { typeof(Struct), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(Struct)}) },
             };
@@ -226,6 +227,7 @@ namespace Serialization
                 { typeof(Byte), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(Byte).MakeByRefType()}) },
                 { typeof(SByte), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(SByte).MakeByRefType()}) },
                 { typeof(String), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(String).MakeByRefType()}) },
+                { typeof(Byte[]), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(Byte[]).MakeByRefType()}) },
                 { typeof(Base), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(Base).MakeByRefType()}) },
                 { typeof(Struct), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(Struct).MakeByRefType()}) },
             };

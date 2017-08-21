@@ -43,6 +43,7 @@ namespace Serialization
             typeof(Byte),
             typeof(SByte),
             typeof(String),
+            typeof(byte[]),
         };
 
         static readonly Type[] serializableTypes = new Type[0];
