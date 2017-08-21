@@ -59,7 +59,7 @@ public class Test : MonoBehaviour
         Debug.Log("Hello Unity 2017.1");
 
         // NB: only the runtime code should invoke this
-        Serialization.Serialization.Initialize();
+        // Serialization.Serialization.Initialize();
 
         SerializationOutput so = new SerializationOutput();
         Base o = new Base {

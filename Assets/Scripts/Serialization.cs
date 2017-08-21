@@ -275,6 +275,11 @@ namespace Serialization
         internal static Delegate_Serialize Serialize { get; private set; }
         internal static Delegate_Deserialize Deserialize { get; private set; }
 
+        static SerializationHelper()
+        {
+            CreateDelegates();
+        }
+
         internal static void CreateDelegates()
         {
             Serialize = SerializeDelegateCreationHelper.CreateDelegate();
