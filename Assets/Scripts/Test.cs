@@ -27,13 +27,15 @@ public class Base
 {
     public int i = 0;
 
+    public byte[] buffer;
+
 	public Struct[][] taa;
 
     public string[][] saa;
 
     public override string ToString()
 	{
-		return $"Base: i={i}, taa={Helpers.ToString(taa)}, saa={Helpers.ToString(saa)}";
+		return $"Base: i={i}, buffer={Helpers.ToString(buffer)}, taa={Helpers.ToString(taa)}, saa={Helpers.ToString(saa)}";
 	}
 }
 
@@ -64,6 +66,7 @@ public class Test : MonoBehaviour
         SerializationOutput so = new SerializationOutput();
         Base o = new Base {
             i = 42,
+            buffer = new byte[] {42, 42, 42, 42},
             saa = new string[][] {
                 new string[] {"X", "Y", "Z"},
                 new string[] {"T", "U"},
