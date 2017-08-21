@@ -233,6 +233,22 @@ namespace Serialization
             };
         }
     }
+    static partial class SerializableTypesRegistry
+    {
+        static partial void Initialize()
+        {
+            instantiationDelegates = new Func<object>[]
+            {
+                () => new Base(),
+                () => new Struct(),
+            };
+            typeIndexMapping = new Dictionary<Type, int>
+            {
+                { typeof(Base), 0},
+                { typeof(Struct), 1},
+            };
+        }
+    }
     static partial class Serialization
     {
         static partial void InitializeImpl()

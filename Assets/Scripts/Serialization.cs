@@ -205,6 +205,33 @@ namespace Serialization
             }
         }
 
+        static void GenerateSerializableTypesRegistry(CodeGen.CodeBlock bodyNameSpace)
+        {
+            var bodySerializableTypesRegistry = bodyNameSpace
+                .AddLine("static partial class SerializableTypesRegistry")
+                .AddBlock();
+            var bodyInitializeMethod = bodySerializableTypesRegistry
+                .AddLine("static partial void Initialize()")
+                .AddBlock();
+            var bodyInstantiationDelegates = bodyInitializeMethod
+                .AddLine("instantiationDelegates = new Func<object>[]")
+                .AddBlock()
+                .WithSemicolon();
+            var bodyTypeIndexMapping = bodyInitializeMethod
+                .AddLine("typeIndexMapping = new Dictionary<Type, int>")
+                .AddBlock()
+                .WithSemicolon();
+
+            int idx = 0;
+            foreach (var type in serializableTypes)
+            {
+                bodyInstantiationDelegates.AddLine($"() => new {GetStringRep(type)}(),");
+                bodyTypeIndexMapping.AddLine($"{{ typeof({GetStringRep(type)}), {idx}}},");
+
+                ++idx;
+            }
+        }
+
         static void GenerateGlobalInitializationImpl(CodeGen.CodeBlock bodyNameSpace)
         {
             var bodySerializationClass = bodyNameSpace
@@ -236,6 +263,7 @@ namespace Serialization
             GeneratePartialSerializationInputClass(bodyNameSpace);
 
             GenerateTypeSerializationMethodMapping(bodyNameSpace);
+            GenerateSerializableTypesRegistry(bodyNameSpace);
 
             GenerateGlobalInitializationImpl(bodyNameSpace);
 
@@ -504,6 +532,31 @@ namespace Serialization
 
                 return lambda.Compile();
             }
+        }
+    }
+
+    // All the Serializable types, including value types, not just reference types
+    // We need to be able to instantiate a struct type for an interface reference!
+    static partial class SerializableTypesRegistry
+    {
+        static Func<object>[] instantiationDelegates = new Func<object>[0];
+        static Dictionary<Type, int> typeIndexMapping = new Dictionary<Type, int>();
+
+        static SerializableTypesRegistry()
+        {
+            Initialize();
+        }
+
+        static partial void Initialize();
+
+        internal static T Instantiate<T>(int typeIndex)
+        {
+            return (T)instantiationDelegates[typeIndex]();
+        }
+
+        internal static int GetTypeIndex(Type type)
+        {
+            return typeIndexMapping[type];
         }
     }
 
