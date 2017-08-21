@@ -277,13 +277,14 @@ namespace Serialization
 
         static SerializationHelper()
         {
-            CreateDelegates();
+            Serialize = SerializeDelegateCreationHelper.CreateDelegate();
+            Deserialize = DeserializeDelegateCreationHelper.CreateDelegate();
         }
 
         internal static void CreateDelegates()
         {
-            Serialize = SerializeDelegateCreationHelper.CreateDelegate();
-            Deserialize = DeserializeDelegateCreationHelper.CreateDelegate();
+            // NB: this method doesn't do anything by itself, but if being invoked early,
+            // this triggers the static constructor to be executed, if not yet done already
         }
 
         static class SerializeDelegateCreationHelper
