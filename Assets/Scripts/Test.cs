@@ -25,6 +25,14 @@ static class Helpers
 [Serializable]
 public class Base
 {
+    // permutations (ps is null):
+    // - [SerializeField] with 'private' - thows null reference exception
+    // - [NonSerialized] with 'public' - not touched, no exception
+    // - 'public' - throws null reference exception
+    // [SerializeField]
+    [NonSerialized]
+    public string ps;
+
     public int i = 0;
 
     public byte[] buffer = new byte[0];
@@ -46,7 +54,7 @@ public class Derived : Base
 
     public override string ToString()
     {
-        return $"Derived: s={s} +++" + base.ToString();
+        return $"Derived: s={s} +++ " + base.ToString();
     }
 }
 

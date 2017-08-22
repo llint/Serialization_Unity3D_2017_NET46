@@ -491,6 +491,16 @@ namespace Serialization
 
                 foreach (var fi in type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
                 {
+                    if (Attribute.GetCustomAttributes(fi, typeof(NonSerializedAttribute)).Any())
+                    {
+                        continue;
+                    }
+
+                    if (!fi.IsPublic && !Attribute.GetCustomAttributes(fi, typeof(UnityEngine.SerializeField)).Any())
+                    {
+                        continue;
+                    }
+
                     MemberExpression memberExpression = Expression.Field(o, fi);
 
                     var serializeExpression = GenerateSerializeValueExpression(so, memberExpression);
@@ -663,6 +673,16 @@ namespace Serialization
 
                 foreach (var fi in type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
                 {
+                    if (Attribute.GetCustomAttributes(fi, typeof(NonSerializedAttribute)).Any())
+                    {
+                        continue;
+                    }
+
+                    if (!fi.IsPublic && !Attribute.GetCustomAttributes(fi, typeof(UnityEngine.SerializeField)).Any())
+                    {
+                        continue;
+                    }
+
                     MemberExpression memberExpression = Expression.Field(o, fi);
 
                     var deserializeExpression = GenerateDeserializeValueExpression(si, memberExpression);
