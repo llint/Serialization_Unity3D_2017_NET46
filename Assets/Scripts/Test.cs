@@ -27,14 +27,27 @@ public class Base
 {
     public int i = 0;
 
-	public Struct[][] taa;
+    public byte[] buffer = new byte[0];
 
-    public string[][] saa;
+	public Struct[][] taa = new Struct[0][];
+
+    public string[][] saa = new string[0][];
 
     public override string ToString()
 	{
-		return $"Base: i={i}, taa={Helpers.ToString(taa)}, saa={Helpers.ToString(saa)}";
+		return $"Base: i={i}, buffer={Helpers.ToString(buffer)}, taa={Helpers.ToString(taa)}, saa={Helpers.ToString(saa)}";
 	}
+}
+
+[Serializable]
+public class Derived : Base
+{
+    public string s = "";
+
+    public override string ToString()
+    {
+        return $"Derived: s={s} +++" + base.ToString();
+    }
 }
 
 [Serializable]
@@ -42,12 +55,14 @@ public struct Struct
 {
     public MyEnum[] ea;
 
+    public Base b;
+
     public int i;
 	public string s;
 
 	public override string ToString()
 	{
-		return $"Struct: ea={Helpers.ToString(ea)}, i={i}, s={s}";
+		return $"Struct: b={b}, ea={Helpers.ToString(ea)}, i={i}, s={s}";
 	}
 }
 
@@ -59,11 +74,12 @@ public class Test : MonoBehaviour
         Debug.Log("Hello Unity 2017.1");
 
         // NB: only the runtime code should invoke this
-        Serialization.Serialization.Initialize();
+        // Serialization.Serialization.Initialize();
 
         SerializationOutput so = new SerializationOutput();
         Base o = new Base {
             i = 42,
+            buffer = new byte[] {42, 42, 42, 42},
             saa = new string[][] {
                 new string[] {"X", "Y", "Z"},
                 new string[] {"T", "U"},
@@ -71,6 +87,7 @@ public class Test : MonoBehaviour
             taa = new Struct[][] {
                 new Struct[] {
                     new Struct {
+                        b = new Derived {s = "Derived"},
                         i = 888,
                         s = "xxx",
                         ea = new MyEnum[] {MyEnum.A, MyEnum.B, MyEnum.C},
@@ -78,6 +95,7 @@ public class Test : MonoBehaviour
                 },
                 new Struct[] {
                     new Struct {
+                        b = new Base(),
                         i = 666,
                         s = "yyyy",
                         ea = new MyEnum[] {MyEnum.C, MyEnum.B, MyEnum.A},

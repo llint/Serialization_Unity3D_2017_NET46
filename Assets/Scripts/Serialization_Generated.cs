@@ -73,6 +73,10 @@ namespace Serialization
         {
             return SerializationHelper<Base>.Serialize(this, value);
         }
+        public SerializationOutput Serialize(Derived value)
+        {
+            return SerializationHelper<Derived>.Serialize(this, value);
+        }
         public SerializationOutput Serialize(Struct value)
         {
             return SerializationHelper<Struct>.Serialize(this, value);
@@ -82,6 +86,7 @@ namespace Serialization
     {
         public SerializationInput Deserialize(out Boolean value)
         {
+            position = stream.Position;
             var buffer = BitConverter.GetBytes(default(Boolean));
             if (stream.Read(buffer, 0, buffer.Length) == buffer.Length)
             {
@@ -92,6 +97,7 @@ namespace Serialization
         }
         public SerializationInput Deserialize(out Char value)
         {
+            position = stream.Position;
             var buffer = BitConverter.GetBytes(default(Char));
             if (stream.Read(buffer, 0, buffer.Length) == buffer.Length)
             {
@@ -102,6 +108,7 @@ namespace Serialization
         }
         public SerializationInput Deserialize(out Int16 value)
         {
+            position = stream.Position;
             var buffer = BitConverter.GetBytes(default(Int16));
             if (stream.Read(buffer, 0, buffer.Length) == buffer.Length)
             {
@@ -112,6 +119,7 @@ namespace Serialization
         }
         public SerializationInput Deserialize(out UInt16 value)
         {
+            position = stream.Position;
             var buffer = BitConverter.GetBytes(default(UInt16));
             if (stream.Read(buffer, 0, buffer.Length) == buffer.Length)
             {
@@ -122,6 +130,7 @@ namespace Serialization
         }
         public SerializationInput Deserialize(out Int32 value)
         {
+            position = stream.Position;
             var buffer = BitConverter.GetBytes(default(Int32));
             if (stream.Read(buffer, 0, buffer.Length) == buffer.Length)
             {
@@ -132,6 +141,7 @@ namespace Serialization
         }
         public SerializationInput Deserialize(out UInt32 value)
         {
+            position = stream.Position;
             var buffer = BitConverter.GetBytes(default(UInt32));
             if (stream.Read(buffer, 0, buffer.Length) == buffer.Length)
             {
@@ -142,6 +152,7 @@ namespace Serialization
         }
         public SerializationInput Deserialize(out Int64 value)
         {
+            position = stream.Position;
             var buffer = BitConverter.GetBytes(default(Int64));
             if (stream.Read(buffer, 0, buffer.Length) == buffer.Length)
             {
@@ -152,6 +163,7 @@ namespace Serialization
         }
         public SerializationInput Deserialize(out UInt64 value)
         {
+            position = stream.Position;
             var buffer = BitConverter.GetBytes(default(UInt64));
             if (stream.Read(buffer, 0, buffer.Length) == buffer.Length)
             {
@@ -162,6 +174,7 @@ namespace Serialization
         }
         public SerializationInput Deserialize(out Single value)
         {
+            position = stream.Position;
             var buffer = BitConverter.GetBytes(default(Single));
             if (stream.Read(buffer, 0, buffer.Length) == buffer.Length)
             {
@@ -172,6 +185,7 @@ namespace Serialization
         }
         public SerializationInput Deserialize(out Double value)
         {
+            position = stream.Position;
             var buffer = BitConverter.GetBytes(default(Double));
             if (stream.Read(buffer, 0, buffer.Length) == buffer.Length)
             {
@@ -182,10 +196,17 @@ namespace Serialization
         }
         public SerializationInput Deserialize(out Base value)
         {
+            position = stream.Position;
             return SerializationHelper<Base>.Deserialize(this, out value);
+        }
+        public SerializationInput Deserialize(out Derived value)
+        {
+            position = stream.Position;
+            return SerializationHelper<Derived>.Deserialize(this, out value);
         }
         public SerializationInput Deserialize(out Struct value)
         {
+            position = stream.Position;
             return SerializationHelper<Struct>.Deserialize(this, out value);
         }
     }
@@ -208,7 +229,9 @@ namespace Serialization
                 { typeof(Byte), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(Byte)}) },
                 { typeof(SByte), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(SByte)}) },
                 { typeof(String), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(String)}) },
+                { typeof(Byte[]), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(Byte[])}) },
                 { typeof(Base), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(Base)}) },
+                { typeof(Derived), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(Derived)}) },
                 { typeof(Struct), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(Struct)}) },
             };
             TypeDeserializeMethodMapping = new Dictionary<Type, MethodInfo>
@@ -226,8 +249,40 @@ namespace Serialization
                 { typeof(Byte), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(Byte).MakeByRefType()}) },
                 { typeof(SByte), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(SByte).MakeByRefType()}) },
                 { typeof(String), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(String).MakeByRefType()}) },
+                { typeof(Byte[]), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(Byte[]).MakeByRefType()}) },
                 { typeof(Base), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(Base).MakeByRefType()}) },
+                { typeof(Derived), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(Derived).MakeByRefType()}) },
                 { typeof(Struct), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(Struct).MakeByRefType()}) },
+            };
+        }
+    }
+    static partial class SerializableTypesRegistry
+    {
+        static partial void Initialize()
+        {
+            serializableTypes = new Type[]
+            {
+                typeof(Base),
+                typeof(Derived),
+                typeof(Struct),
+            };
+            typeIndexMapping = new Dictionary<Type, int>
+            {
+                { typeof(Base), 0 },
+                { typeof(Derived), 1 },
+                { typeof(Struct), 2 },
+            };
+            typeSerializeDelegateMapping = new Dictionary<Type, Serialize>
+            {
+                { typeof(Base), (SerializationOutput so, object o) => so.Serialize((Base)o) },
+                { typeof(Derived), (SerializationOutput so, object o) => so.Serialize((Derived)o) },
+                { typeof(Struct), (SerializationOutput so, object o) => so.Serialize((Struct)o) },
+            };
+            typeDeserializeDelegateMapping = new Dictionary<Type, Deserialize>
+            {
+                { typeof(Base), (SerializationInput si, out object o) => { Base x; si.Deserialize(out x); o = x; return si; } },
+                { typeof(Derived), (SerializationInput si, out object o) => { Derived x; si.Deserialize(out x); o = x; return si; } },
+                { typeof(Struct), (SerializationInput si, out object o) => { Struct x; si.Deserialize(out x); o = x; return si; } },
             };
         }
     }
@@ -236,6 +291,7 @@ namespace Serialization
         static partial void InitializeImpl()
         {
             SerializationHelper<Base>.CreateDelegates();
+            SerializationHelper<Derived>.CreateDelegates();
             SerializationHelper<Struct>.CreateDelegates();
         }
     }

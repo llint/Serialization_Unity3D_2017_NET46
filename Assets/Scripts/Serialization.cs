@@ -43,6 +43,7 @@ namespace Serialization
             typeof(Byte),
             typeof(SByte),
             typeof(String),
+            typeof(byte[]),
         };
 
         static readonly Type[] serializableTypes = new Type[0];
@@ -143,6 +144,7 @@ namespace Serialization
                 var bodyDeserializeMethod = bodySerializationInputClass
                     .AddLine($"public SerializationInput Deserialize(out {type.Name} value)")
                     .AddBlock();
+                bodyDeserializeMethod.AddLine("position = stream.Position;");
                 bodyDeserializeMethod.AddLine($"var buffer = BitConverter.GetBytes(default({type.Name}));");
                 var bodyIf = bodyDeserializeMethod
                     .AddLine("if (stream.Read(buffer, 0, buffer.Length) == buffer.Length)")
@@ -158,6 +160,7 @@ namespace Serialization
                 var bodyDeserializeMethod = bodySerializationInputClass
                     .AddLine($"public SerializationInput Deserialize(out {GetStringRep(type)} value)")
                     .AddBlock();
+                bodyDeserializeMethod.AddLine("position = stream.Position;");
                 bodyDeserializeMethod
                     .AddLine($"return SerializationHelper<{GetStringRep(type)}>.Deserialize(this, out value);");
             }
@@ -204,6 +207,43 @@ namespace Serialization
             }
         }
 
+        static void GenerateSerializableTypesRegistry(CodeGen.CodeBlock bodyNameSpace)
+        {
+            var bodySerializableTypesRegistry = bodyNameSpace
+                .AddLine("static partial class SerializableTypesRegistry")
+                .AddBlock();
+            var bodyInitializeMethod = bodySerializableTypesRegistry
+                .AddLine("static partial void Initialize()")
+                .AddBlock();
+            var bodySerializableTypes = bodyInitializeMethod
+                .AddLine("serializableTypes = new Type[]")
+                .AddBlock()
+                .WithSemicolon();
+            var bodyTypeIndexMapping = bodyInitializeMethod
+                .AddLine("typeIndexMapping = new Dictionary<Type, int>")
+                .AddBlock()
+                .WithSemicolon();
+            var bodyTypeSerializeDelegateMapping = bodyInitializeMethod
+                .AddLine("typeSerializeDelegateMapping = new Dictionary<Type, Serialize>")
+                .AddBlock()
+                .WithSemicolon();
+            var bodyTypeDeserializeDelegateMapping = bodyInitializeMethod
+                .AddLine("typeDeserializeDelegateMapping = new Dictionary<Type, Deserialize>")
+                .AddBlock()
+                .WithSemicolon();
+
+            int idx = 0;
+            foreach (var type in serializableTypes)
+            {
+                bodySerializableTypes.AddLine($"typeof({GetStringRep(type)}),");
+                bodyTypeIndexMapping.AddLine($"{{ typeof({GetStringRep(type)}), {idx} }},");
+                bodyTypeSerializeDelegateMapping.AddLine($"{{ typeof({GetStringRep(type)}), (SerializationOutput so, object o) => so.Serialize(({GetStringRep(type)})o) }},");
+                bodyTypeDeserializeDelegateMapping.AddLine($"{{ typeof({GetStringRep(type)}), (SerializationInput si, out object o) => {{ {GetStringRep(type)} x; si.Deserialize(out x); o = x; return si; }} }},");
+
+                ++idx;
+            }
+        }
+
         static void GenerateGlobalInitializationImpl(CodeGen.CodeBlock bodyNameSpace)
         {
             var bodySerializationClass = bodyNameSpace
@@ -235,6 +275,7 @@ namespace Serialization
             GeneratePartialSerializationInputClass(bodyNameSpace);
 
             GenerateTypeSerializationMethodMapping(bodyNameSpace);
+            GenerateSerializableTypesRegistry(bodyNameSpace);
 
             GenerateGlobalInitializationImpl(bodyNameSpace);
 
@@ -257,6 +298,47 @@ namespace Serialization
         static partial void InitializeMapping();
     }
 
+    // All the Serializable types, including value types, not just reference types
+    // We need to be able to instantiate a struct type for an interface reference!
+    static partial class SerializableTypesRegistry
+    {
+        static Type[] serializableTypes = new Type[0];
+        static Dictionary<Type, int> typeIndexMapping = new Dictionary<Type, int>();
+
+        public delegate SerializationOutput Serialize(SerializationOutput so, object o);
+        public delegate SerializationInput Deserialize(SerializationInput si, out object o);
+
+        static Dictionary<Type, Serialize> typeSerializeDelegateMapping = new Dictionary<Type, Serialize>();
+        static Dictionary<Type, Deserialize> typeDeserializeDelegateMapping = new Dictionary<Type, Deserialize>();
+
+        static SerializableTypesRegistry()
+        {
+            Initialize();
+        }
+
+        static partial void Initialize();
+
+        public static Type GetIndexedType(int typeIndex)
+        {
+            return serializableTypes[typeIndex];
+        }
+
+        public static int GetTypeIndex(Type type)
+        {
+            return typeIndexMapping[type];
+        }
+
+        public static Serialize GetSerializeDelegate(Type type)
+        {
+            return typeSerializeDelegateMapping[type];
+        }
+
+        public static Deserialize GetDeserializeDelegate(Type type)
+        {
+            return typeDeserializeDelegateMapping[type];
+        }
+    }
+
     static partial class Serialization
     {
         internal static void Initialize()
@@ -275,10 +357,16 @@ namespace Serialization
         internal static Delegate_Serialize Serialize { get; private set; }
         internal static Delegate_Deserialize Deserialize { get; private set; }
 
-        internal static void CreateDelegates()
+        static SerializationHelper()
         {
             Serialize = SerializeDelegateCreationHelper.CreateDelegate();
             Deserialize = DeserializeDelegateCreationHelper.CreateDelegate();
+        }
+
+        internal static void CreateDelegates()
+        {
+            // NB: this method doesn't do anything by itself, but if being invoked early,
+            // this triggers the static constructor to be executed, if not yet done already
         }
 
         static class SerializeDelegateCreationHelper
@@ -357,6 +445,42 @@ namespace Serialization
 
                 var blockExpressions = new List<Expression>();
 
+                LabelTarget labelTarget = Expression.Label(typeof(SerializationOutput));
+                LabelExpression labelExpression = Expression.Label(labelTarget, so);
+
+                if (!type.IsValueType)
+                {
+                    /*
+                        if (o.GetType() != typeof(T))
+                        {
+                            // 'o' is of a derived type of T, dispatch the serialization to it
+                            return SerializableTypesRegistry.GetSerializeDelegate(o.GetType())(so, o);
+                        }
+                        so.Serialize(SerializableTypesRegistry.GetTypeIndex(o.GetType()));
+                        ... serialize fields of T ...
+                        return so;
+                     */
+                    var miGetType = typeof(object).GetMethod("GetType");
+                    var exprGetType = Expression.Call(o, miGetType);
+                    var miGetSerializeDelegate =
+                        typeof(SerializableTypesRegistry).GetMethod("GetSerializeDelegate", new[]{typeof(Type)});
+                    var returnConcreteSerializeExpression =
+                        Expression.Return(labelTarget,
+                            Expression.Invoke(Expression.Call(miGetSerializeDelegate, exprGetType), so, o),
+                            typeof(SerializationOutput));
+                    var conditionalConcreteSerialize = Expression.IfThen(
+                        Expression.NotEqual(exprGetType, Expression.Constant(type)),
+                        returnConcreteSerializeExpression);
+                    Debug.Log(conditionalConcreteSerialize);
+                    blockExpressions.Add(conditionalConcreteSerialize);
+                    var miGetTypeIndex = typeof(SerializableTypesRegistry).GetMethod("GetTypeIndex", new[]{typeof(Type)});
+                    var exprGetTypeIndex = Expression.Call(miGetTypeIndex, exprGetType);
+                    var mi = TypeSerializationMethodMapping.TypeSerializeMethodMapping[typeof(int)];
+                    var serializeTypeIndexExpression = Expression.Call(so, mi, exprGetTypeIndex);
+                    Debug.Log(serializeTypeIndexExpression.ToString());
+                    blockExpressions.Add(serializeTypeIndexExpression);
+                }
+
                 foreach (var fi in type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
                 {
                     MemberExpression memberExpression = Expression.Field(o, fi);
@@ -366,9 +490,7 @@ namespace Serialization
                     blockExpressions.Add(serializeExpression);
                 }
 
-                LabelTarget labelTarget = Expression.Label(typeof(SerializationOutput));
                 GotoExpression returnExpression = Expression.Return(labelTarget, so, typeof(SerializationOutput));
-                LabelExpression labelExpression = Expression.Label(labelTarget, so);
 
                 blockExpressions.Add(returnExpression);
                 blockExpressions.Add(labelExpression);
@@ -469,7 +591,63 @@ namespace Serialization
                 ParameterExpression si = Expression.Parameter(typeof(SerializationInput), "si");
                 ParameterExpression o = Expression.Parameter(type.MakeByRefType(), "o");
 
+                var blockVariables = new List<ParameterExpression>();
                 var blockExpressions = new List<Expression>();
+
+                LabelTarget labelTarget = Expression.Label(typeof(SerializationInput));
+                GotoExpression returnExpression = Expression.Return(labelTarget, si, typeof(SerializationInput));
+
+                if (!type.IsValueType)
+                {
+                    /*
+                        int typeIndex;
+                        si.Deserialize(out typeIndex);
+                        var concreteType;
+                        concreteType = SerializableTypesRegistry.GetIndexedType(typeIndex);
+                        if (concreteType != typeof(T))
+                        {
+                            si.Rewind(); // so the typeIndex can be read again
+                            object x;
+                            SerializableTypesRegistry.GetDeserializeDelegate(concreteType)(si, out x);
+                            o = (T)x;
+                            return si;
+                        }
+
+                        o = new T();
+                        ... deserialize fields of T ...
+                        return si;
+                     */
+                    var typeIndex = Expression.Variable(typeof(int), "typeIndex");
+                    blockVariables.Add(typeIndex);
+                    var mi = TypeSerializationMethodMapping.TypeDeserializeMethodMapping[typeof(int)];
+                    var deserializeTypeIndex = Expression.Call(si, mi, typeIndex);
+                    blockExpressions.Add(deserializeTypeIndex);
+                    var miGetIndexedType = typeof(SerializableTypesRegistry).GetMethod("GetIndexedType", new[] {typeof(int)});
+                    var concreteType = Expression.Variable(typeof(Type), "concreteType");
+                    blockVariables.Add(concreteType);
+                    var assignConcreteTypeExpression = Expression.Assign(concreteType, Expression.Call(miGetIndexedType, typeIndex));
+                    blockExpressions.Add(assignConcreteTypeExpression);
+                    var miRewind = typeof(SerializationInput).GetMethod("Rewind");
+                    var x = Expression.Variable(typeof(object), "x");
+                    var miGetDeserializeDelegate =
+                        typeof(SerializableTypesRegistry).GetMethod("GetDeserializeDelegate", new[] {typeof(Type)});
+                    var concreteDeserialize =
+                        Expression.Invoke(Expression.Call(miGetDeserializeDelegate, concreteType), si, x);
+                    var assign = Expression.Assign(o, Expression.Convert(x, type));
+                    var conditionalConcreteDeserialize =
+                        Expression.IfThen(
+                            Expression.NotEqual(concreteType, Expression.Constant(type)),
+                            Expression.Block(
+                                new[] {x},
+                                Expression.Call(si, miRewind),
+                                concreteDeserialize,
+                                assign,
+                                returnExpression // labelExpression is at the end of the entire block (below)
+                            )
+                        );
+                    Debug.Log(conditionalConcreteDeserialize.ToString());
+                    blockExpressions.Add(conditionalConcreteDeserialize);
+                }
 
                 BinaryExpression instantiateExpression = Expression.Assign(o, Expression.New(type));
                 Debug.Log(instantiateExpression.ToString());
@@ -484,15 +662,13 @@ namespace Serialization
                     blockExpressions.Add(deserializeExpression);
                 }
 
-                LabelTarget labelTarget = Expression.Label(typeof(SerializationInput));
-                GotoExpression returnExpression = Expression.Return(labelTarget, si, typeof(SerializationInput));
                 LabelExpression labelExpression = Expression.Label(labelTarget, si);
 
                 blockExpressions.Add(returnExpression);
                 blockExpressions.Add(labelExpression);
 
                 var lambda = Expression.Lambda<Delegate_Deserialize>(
-                    Expression.Block(typeof(SerializationInput), blockExpressions), si, o);
+                    Expression.Block(typeof(SerializationInput), blockVariables, blockExpressions), si, o);
                 Debug.Log(lambda.ToString());
 
                 return lambda.Compile();
@@ -555,11 +731,13 @@ namespace Serialization
     partial class SerializationInput
     {
         MemoryStream stream;
+        long position;
 
         public SerializationInput(MemoryStream stream_)
         {
             stream = stream_;
             stream.Seek(0, SeekOrigin.Begin);
+            position = stream.Position;
         }
 
         public MemoryStream GetStream()
@@ -567,8 +745,15 @@ namespace Serialization
             return stream;
         }
 
+        public void Rewind()
+        {
+            // stream.Seek(position, SeekOrigin.Begin);
+            stream.Position = position;
+        }
+
         public SerializationInput Deserialize(out Byte value)
         {
+            position = stream.Position;
             var r = stream.ReadByte();
             if (r == -1)
             {
@@ -580,6 +765,7 @@ namespace Serialization
 
         public SerializationInput Deserialize(out SByte value)
         {
+            position = stream.Position;
             var r = stream.ReadByte();
             if (r == -1)
             {
@@ -591,6 +777,7 @@ namespace Serialization
 
         public SerializationInput Deserialize(out String value)
         {
+            position = stream.Position;
             UInt16 len = 0;
             Deserialize(out len);
             var buffer = new byte[len];
@@ -604,6 +791,7 @@ namespace Serialization
 
         public SerializationInput Deserialize(out byte[] buffer)
         {
+            position = stream.Position;
             int n = 0;
             Deserialize(out n);
             buffer = new byte[n];
