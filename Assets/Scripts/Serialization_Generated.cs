@@ -73,6 +73,10 @@ namespace Serialization
         {
             return SerializationHelper<Base>.Serialize(this, value);
         }
+        public SerializationOutput Serialize(Derived value)
+        {
+            return SerializationHelper<Derived>.Serialize(this, value);
+        }
         public SerializationOutput Serialize(Struct value)
         {
             return SerializationHelper<Struct>.Serialize(this, value);
@@ -184,6 +188,10 @@ namespace Serialization
         {
             return SerializationHelper<Base>.Deserialize(this, out value);
         }
+        public SerializationInput Deserialize(out Derived value)
+        {
+            return SerializationHelper<Derived>.Deserialize(this, out value);
+        }
         public SerializationInput Deserialize(out Struct value)
         {
             return SerializationHelper<Struct>.Deserialize(this, out value);
@@ -210,6 +218,7 @@ namespace Serialization
                 { typeof(String), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(String)}) },
                 { typeof(Byte[]), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(Byte[])}) },
                 { typeof(Base), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(Base)}) },
+                { typeof(Derived), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(Derived)}) },
                 { typeof(Struct), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(Struct)}) },
             };
             TypeDeserializeMethodMapping = new Dictionary<Type, MethodInfo>
@@ -229,6 +238,7 @@ namespace Serialization
                 { typeof(String), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(String).MakeByRefType()}) },
                 { typeof(Byte[]), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(Byte[]).MakeByRefType()}) },
                 { typeof(Base), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(Base).MakeByRefType()}) },
+                { typeof(Derived), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(Derived).MakeByRefType()}) },
                 { typeof(Struct), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(Struct).MakeByRefType()}) },
             };
         }
@@ -240,12 +250,14 @@ namespace Serialization
             instantiationDelegates = new Func<object>[]
             {
                 () => new Base(),
+                () => new Derived(),
                 () => new Struct(),
             };
             typeIndexMapping = new Dictionary<Type, int>
             {
                 { typeof(Base), 0},
-                { typeof(Struct), 1},
+                { typeof(Derived), 1},
+                { typeof(Struct), 2},
             };
         }
     }
@@ -254,6 +266,7 @@ namespace Serialization
         static partial void InitializeImpl()
         {
             SerializationHelper<Base>.CreateDelegates();
+            SerializationHelper<Derived>.CreateDelegates();
             SerializationHelper<Struct>.CreateDelegates();
         }
     }

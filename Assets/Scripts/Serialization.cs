@@ -392,6 +392,19 @@ namespace Serialization
 
                 var blockExpressions = new List<Expression>();
 
+                if (!type.IsValueType)
+                {
+                    // so.Serialize(SerializableTypesRegistry.GetTypeIndex(o.GetType()));
+                    var miGetType = typeof(object).GetMethod("GetType");
+                    var exprGetType = Expression.Call(o, miGetType);
+                    var miGetTypeIndex = typeof(SerializableTypesRegistry).GetMethod("GetTypeIndex", new[]{typeof(Type)});
+                    var exprGetTypeIndex = Expression.Call(miGetTypeIndex, exprGetType);
+                    var mi = TypeSerializationMethodMapping.TypeSerializeMethodMapping[typeof(int)];
+                    var serializeTypeIndexExpression = Expression.Call(so, mi, exprGetTypeIndex);
+                    Debug.Log(serializeTypeIndexExpression.ToString());
+                    blockExpressions.Add(serializeTypeIndexExpression);
+                }
+
                 foreach (var fi in type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
                 {
                     MemberExpression memberExpression = Expression.Field(o, fi);
@@ -506,9 +519,29 @@ namespace Serialization
 
                 var blockExpressions = new List<Expression>();
 
-                BinaryExpression instantiateExpression = Expression.Assign(o, Expression.New(type));
-                Debug.Log(instantiateExpression.ToString());
-                blockExpressions.Add(instantiateExpression);
+                if (!type.IsValueType)
+                {
+                    // { int typeIndex; si.Deserialize(out typeIndex); o = (T)SerializableTypesRegistry.Instantiate(typeIndex); }
+                    var typeIndex = Expression.Variable(typeof(int), "typeIndex");
+                    var mi = TypeSerializationMethodMapping.TypeDeserializeMethodMapping[typeof(int)];
+                    var deserializeTypeIndex = Expression.Call(si, mi, typeIndex);
+                    var miInstantiate = typeof(SerializableTypesRegistry).GetMethod("Instantiate", new[]{typeof(int)});
+                    var instantiateExpression = Expression.Call(miInstantiate, typeIndex);
+                    var instantiateAssignExpression = Expression.Assign(o, Expression.Convert(instantiateExpression, type));
+                    var deserializeInstantiateBlock = Expression.Block(
+                        new[]{typeIndex},
+                        deserializeTypeIndex,
+                        instantiateAssignExpression
+                    );
+                    Debug.Log(deserializeInstantiateBlock);
+                    blockExpressions.Add(deserializeInstantiateBlock);
+                }
+                else
+                {
+                    BinaryExpression instantiateExpression = Expression.Assign(o, Expression.New(type));
+                    Debug.Log(instantiateExpression.ToString());
+                    blockExpressions.Add(instantiateExpression);
+                }
 
                 foreach (var fi in type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
                 {
@@ -549,12 +582,12 @@ namespace Serialization
 
         static partial void Initialize();
 
-        internal static T Instantiate<T>(int typeIndex)
+        public static object Instantiate(int typeIndex)
         {
-            return (T)instantiationDelegates[typeIndex]();
+            return instantiationDelegates[typeIndex]();
         }
 
-        internal static int GetTypeIndex(Type type)
+        public static int GetTypeIndex(Type type)
         {
             return typeIndexMapping[type];
         }
