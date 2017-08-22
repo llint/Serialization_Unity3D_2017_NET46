@@ -144,6 +144,7 @@ namespace Serialization
                 var bodyDeserializeMethod = bodySerializationInputClass
                     .AddLine($"public SerializationInput Deserialize(out {type.Name} value)")
                     .AddBlock();
+                bodyDeserializeMethod.AddLine("position = stream.Position;");
                 bodyDeserializeMethod.AddLine($"var buffer = BitConverter.GetBytes(default({type.Name}));");
                 var bodyIf = bodyDeserializeMethod
                     .AddLine("if (stream.Read(buffer, 0, buffer.Length) == buffer.Length)")
@@ -159,6 +160,7 @@ namespace Serialization
                 var bodyDeserializeMethod = bodySerializationInputClass
                     .AddLine($"public SerializationInput Deserialize(out {GetStringRep(type)} value)")
                     .AddBlock();
+                bodyDeserializeMethod.AddLine("position = stream.Position;");
                 bodyDeserializeMethod
                     .AddLine($"return SerializationHelper<{GetStringRep(type)}>.Deserialize(this, out value);");
             }
@@ -648,11 +650,13 @@ namespace Serialization
     partial class SerializationInput
     {
         MemoryStream stream;
+        long position;
 
         public SerializationInput(MemoryStream stream_)
         {
             stream = stream_;
             stream.Seek(0, SeekOrigin.Begin);
+            position = stream.Position;
         }
 
         public MemoryStream GetStream()
@@ -660,8 +664,15 @@ namespace Serialization
             return stream;
         }
 
+        public void Rewind()
+        {
+            // stream.Seek(position, SeekOrigin.Begin);
+            stream.Position = position;
+        }
+
         public SerializationInput Deserialize(out Byte value)
         {
+            position = stream.Position;
             var r = stream.ReadByte();
             if (r == -1)
             {
@@ -673,6 +684,7 @@ namespace Serialization
 
         public SerializationInput Deserialize(out SByte value)
         {
+            position = stream.Position;
             var r = stream.ReadByte();
             if (r == -1)
             {
@@ -684,6 +696,7 @@ namespace Serialization
 
         public SerializationInput Deserialize(out String value)
         {
+            position = stream.Position;
             UInt16 len = 0;
             Deserialize(out len);
             var buffer = new byte[len];
@@ -697,6 +710,7 @@ namespace Serialization
 
         public SerializationInput Deserialize(out byte[] buffer)
         {
+            position = stream.Position;
             int n = 0;
             Deserialize(out n);
             buffer = new byte[n];

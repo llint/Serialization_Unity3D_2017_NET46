@@ -86,6 +86,7 @@ namespace Serialization
     {
         public SerializationInput Deserialize(out Boolean value)
         {
+            position = stream.Position;
             var buffer = BitConverter.GetBytes(default(Boolean));
             if (stream.Read(buffer, 0, buffer.Length) == buffer.Length)
             {
@@ -96,6 +97,7 @@ namespace Serialization
         }
         public SerializationInput Deserialize(out Char value)
         {
+            position = stream.Position;
             var buffer = BitConverter.GetBytes(default(Char));
             if (stream.Read(buffer, 0, buffer.Length) == buffer.Length)
             {
@@ -106,6 +108,7 @@ namespace Serialization
         }
         public SerializationInput Deserialize(out Int16 value)
         {
+            position = stream.Position;
             var buffer = BitConverter.GetBytes(default(Int16));
             if (stream.Read(buffer, 0, buffer.Length) == buffer.Length)
             {
@@ -116,6 +119,7 @@ namespace Serialization
         }
         public SerializationInput Deserialize(out UInt16 value)
         {
+            position = stream.Position;
             var buffer = BitConverter.GetBytes(default(UInt16));
             if (stream.Read(buffer, 0, buffer.Length) == buffer.Length)
             {
@@ -126,6 +130,7 @@ namespace Serialization
         }
         public SerializationInput Deserialize(out Int32 value)
         {
+            position = stream.Position;
             var buffer = BitConverter.GetBytes(default(Int32));
             if (stream.Read(buffer, 0, buffer.Length) == buffer.Length)
             {
@@ -136,6 +141,7 @@ namespace Serialization
         }
         public SerializationInput Deserialize(out UInt32 value)
         {
+            position = stream.Position;
             var buffer = BitConverter.GetBytes(default(UInt32));
             if (stream.Read(buffer, 0, buffer.Length) == buffer.Length)
             {
@@ -146,6 +152,7 @@ namespace Serialization
         }
         public SerializationInput Deserialize(out Int64 value)
         {
+            position = stream.Position;
             var buffer = BitConverter.GetBytes(default(Int64));
             if (stream.Read(buffer, 0, buffer.Length) == buffer.Length)
             {
@@ -156,6 +163,7 @@ namespace Serialization
         }
         public SerializationInput Deserialize(out UInt64 value)
         {
+            position = stream.Position;
             var buffer = BitConverter.GetBytes(default(UInt64));
             if (stream.Read(buffer, 0, buffer.Length) == buffer.Length)
             {
@@ -166,6 +174,7 @@ namespace Serialization
         }
         public SerializationInput Deserialize(out Single value)
         {
+            position = stream.Position;
             var buffer = BitConverter.GetBytes(default(Single));
             if (stream.Read(buffer, 0, buffer.Length) == buffer.Length)
             {
@@ -176,6 +185,7 @@ namespace Serialization
         }
         public SerializationInput Deserialize(out Double value)
         {
+            position = stream.Position;
             var buffer = BitConverter.GetBytes(default(Double));
             if (stream.Read(buffer, 0, buffer.Length) == buffer.Length)
             {
@@ -186,14 +196,17 @@ namespace Serialization
         }
         public SerializationInput Deserialize(out Base value)
         {
+            position = stream.Position;
             return SerializationHelper<Base>.Deserialize(this, out value);
         }
         public SerializationInput Deserialize(out Derived value)
         {
+            position = stream.Position;
             return SerializationHelper<Derived>.Deserialize(this, out value);
         }
         public SerializationInput Deserialize(out Struct value)
         {
+            position = stream.Position;
             return SerializationHelper<Struct>.Deserialize(this, out value);
         }
     }
