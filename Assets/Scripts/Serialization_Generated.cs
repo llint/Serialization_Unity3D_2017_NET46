@@ -272,17 +272,17 @@ namespace Serialization
                 { typeof(Derived), 1 },
                 { typeof(Struct), 2 },
             };
-            typeSerializeDelegateMapping = new Dictionary<Type, Serialize>
+            typeIndexedSerializeDelegates = new Serialize[]
             {
-                { typeof(Base), (SerializationOutput so, object o) => so.Serialize((Base)o) },
-                { typeof(Derived), (SerializationOutput so, object o) => so.Serialize((Derived)o) },
-                { typeof(Struct), (SerializationOutput so, object o) => so.Serialize((Struct)o) },
+                (SerializationOutput so, object o) => so.Serialize((Base)o),
+                (SerializationOutput so, object o) => so.Serialize((Derived)o),
+                (SerializationOutput so, object o) => so.Serialize((Struct)o),
             };
-            typeDeserializeDelegateMapping = new Dictionary<Type, Deserialize>
+            typeIndexedDeserializeDelegates = new Deserialize[]
             {
-                { typeof(Base), (SerializationInput si, out object o) => { Base x; si.Deserialize(out x); o = x; return si; } },
-                { typeof(Derived), (SerializationInput si, out object o) => { Derived x; si.Deserialize(out x); o = x; return si; } },
-                { typeof(Struct), (SerializationInput si, out object o) => { Struct x; si.Deserialize(out x); o = x; return si; } },
+                (SerializationInput si, out object o) => { Base x; si.Deserialize(out x); o = x; return si; },
+                (SerializationInput si, out object o) => { Derived x; si.Deserialize(out x); o = x; return si; },
+                (SerializationInput si, out object o) => { Struct x; si.Deserialize(out x); o = x; return si; },
             };
         }
     }
