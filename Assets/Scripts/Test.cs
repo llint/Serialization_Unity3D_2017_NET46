@@ -11,21 +11,51 @@ public enum MyEnum { A, B, C };
 
 static class Helpers
 {
+    internal static string ToString<T>(T t)
+    {
+        return t.ToString();
+    }
+
     internal static string ToString<T>(T[] ta)
     {
-        return $"[{string.Join(",", ta.Select(t => t.ToString()))}]";
+        return $"[{string.Join(",", ta.Select(t => ToString(t)))}]";
     }
 
     internal static string ToString<T>(T[][] taa)
     {
         return $"[{string.Join(",", taa.Select(ta => ToString(ta)))}]";
     }
+
+    internal static string ToString<T>(List<T>[] lta)
+    {
+        return $"({string.Join(",", lta.Select(lt => ToString(lt)))})";
+    }
+
+    internal static string ToString<T>(List<T> lt)
+    {
+        return $"({string.Join(",", lt.Select(t => ToString(t)))})";
+    }
+
+    internal static string ToString<T>(List<T[]> lt)
+    {
+        return $"({string.Join(",", lt.Select(ta => ToString(ta)))})";
+    }
 }
 
 [Serializable]
 public class Base
 {
+    // permutations (ps is null):
+    // - [SerializeField] with 'private' - thows null reference exception
+    // - [NonSerialized] with 'public' - not touched, no exception
+    // - 'public' - throws null reference exception
+    // [SerializeField]
+    [NonSerialized]
+    public string ps;
+
     public int i = 0;
+
+    public List<string[]> ls = new List<string[]>();
 
     public byte[] buffer = new byte[0];
 
@@ -35,7 +65,7 @@ public class Base
 
     public override string ToString()
 	{
-		return $"Base: i={i}, buffer={Helpers.ToString(buffer)}, taa={Helpers.ToString(taa)}, saa={Helpers.ToString(saa)}";
+		return $"Base: i={i}, ls={Helpers.ToString(ls)}, buffer={Helpers.ToString(buffer)}, taa={Helpers.ToString(taa)}, saa={Helpers.ToString(saa)}";
 	}
 }
 
@@ -46,7 +76,7 @@ public class Derived : Base
 
     public override string ToString()
     {
-        return $"Derived: s={s} +++" + base.ToString();
+        return $"Derived: s={s} +++ " + base.ToString();
     }
 }
 
@@ -79,6 +109,7 @@ public class Test : MonoBehaviour
         SerializationOutput so = new SerializationOutput();
         Base o = new Base {
             i = 42,
+            ls = new List<string[]> { new string[] { "hello", "world" } },
             buffer = new byte[] {42, 42, 42, 42},
             saa = new string[][] {
                 new string[] {"X", "Y", "Z"},

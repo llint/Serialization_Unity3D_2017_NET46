@@ -383,6 +383,10 @@ namespace Serialization
                 {
                     serializeExpression = GenereateSerializeArrayExpression(so, value);
                 }
+                else if (value.Type.IsGenericType && value.Type.GetGenericTypeDefinition() == typeof(List<>))
+                {
+                    serializeExpression = GenerateSerializeListExpression(so, value);
+                }
                 else if (value.Type.IsEnum)
                 {
                     serializeExpression = GenerateSerializeEnumExpression(so, value);
@@ -398,6 +402,42 @@ namespace Serialization
             {
                 var mi = TypeSerializationMethodMapping.TypeSerializeMethodMapping[typeof(int)];
                 return Expression.Call(so, mi, Expression.Convert(e, typeof(int)));
+            }
+
+            static Expression GenerateSerializeListExpression(Expression so, Expression l)
+            {
+                List<Expression> blockSerializeListExpressions = new List<Expression>();
+
+                var countExpression = Expression.Property(l, "Count");
+
+                // so.Serialize(l.Count)
+                var mi = TypeSerializationMethodMapping.TypeSerializeMethodMapping[typeof(int)];
+                var serializeListCountExpression = Expression.Call(so, mi, countExpression);
+                Debug.Log(serializeListCountExpression.ToString());
+                blockSerializeListExpressions.Add(serializeListCountExpression);
+
+                // Loop and serialize each element
+                ParameterExpression index = Expression.Variable(typeof(int), "i");
+                LabelTarget label = Expression.Label();
+
+                BlockExpression loopBlock = Expression.Block(
+                    new[] { index },
+                    Expression.Assign(index, Expression.Constant(0)),
+                    Expression.Loop(
+                        Expression.IfThenElse(
+                            Expression.LessThan(index, countExpression),
+                            Expression.Block(
+                                GenerateSerializeValueExpression(so, Expression.Property(l, "Item", index)),
+                                Expression.PreIncrementAssign(index)
+                            ),
+                            Expression.Break(label)
+                        ),
+                        label
+                    )
+                );
+                blockSerializeListExpressions.Add(loopBlock);
+
+                return Expression.Block(blockSerializeListExpressions);
             }
 
             static Expression GenereateSerializeArrayExpression(Expression so, Expression a)
@@ -491,6 +531,16 @@ namespace Serialization
 
                 foreach (var fi in type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
                 {
+                    if (Attribute.GetCustomAttributes(fi, typeof(NonSerializedAttribute)).Any())
+                    {
+                        continue;
+                    }
+
+                    if (!fi.IsPublic && !Attribute.GetCustomAttributes(fi, typeof(UnityEngine.SerializeField)).Any())
+                    {
+                        continue;
+                    }
+
                     MemberExpression memberExpression = Expression.Field(o, fi);
 
                     var serializeExpression = GenerateSerializeValueExpression(so, memberExpression);
@@ -525,6 +575,10 @@ namespace Serialization
                 {
                     deserializeExpression = GenerateDeserializeArrayExpression(si, value);
                 }
+                else if (value.Type.IsGenericType && value.Type.GetGenericTypeDefinition() == typeof(List<>))
+                {
+                    deserializeExpression = GenerateDeserializeListExpression(si, value);
+                }
                 else if (value.Type.IsEnum)
                 {
                     deserializeExpression = GenerateDeserializeEnumExpression(si, value);
@@ -550,6 +604,49 @@ namespace Serialization
                     deserializeExpression,
                     assignExpression
                 );
+            }
+
+            static Expression GenerateDeserializeListExpression(Expression si, Expression l)
+            {
+                List<Expression> blockDeserializeListExpressions = new List<Expression>();
+
+                ParameterExpression countExpression = Expression.Variable(typeof(int), "count");
+
+                var mi = TypeSerializationMethodMapping.TypeDeserializeMethodMapping[typeof(int)];
+                var deserializeListCountExpression = Expression.Call(si, mi, countExpression);
+                Debug.Log(deserializeListCountExpression.ToString());
+                blockDeserializeListExpressions.Add(deserializeListCountExpression);
+
+                var instantiateExpression =
+                    Expression.Assign(l, Expression.New(l.Type));
+                Debug.Log(instantiateExpression.ToString());
+                blockDeserializeListExpressions.Add(instantiateExpression);
+
+                // Loop and serialize each element
+                ParameterExpression index = Expression.Variable(typeof(int), "i");
+                ParameterExpression x = Expression.Variable(l.Type.GetGenericArguments()[0], "x");
+                LabelTarget label = Expression.Label();
+
+                BlockExpression loopBlock = Expression.Block(
+                    new[] { index },
+                    Expression.Assign(index, Expression.Constant(0)),
+                    Expression.Loop(
+                        Expression.IfThenElse(
+                            Expression.LessThan(index, countExpression),
+                            Expression.Block(
+                                new[] {x},
+                                GenerateDeserializeValueExpression(si, x),
+                                Expression.Call(l, l.Type.GetMethod("Add"), x),
+                                Expression.PreIncrementAssign(index)
+                            ),
+                            Expression.Break(label)
+                        ),
+                        label
+                    )
+                );
+                blockDeserializeListExpressions.Add(loopBlock);
+
+                return Expression.Block(new[] { countExpression }, blockDeserializeListExpressions);
             }
 
             static Expression GenerateDeserializeArrayExpression(Expression si, Expression a)
@@ -663,6 +760,16 @@ namespace Serialization
 
                 foreach (var fi in type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
                 {
+                    if (Attribute.GetCustomAttributes(fi, typeof(NonSerializedAttribute)).Any())
+                    {
+                        continue;
+                    }
+
+                    if (!fi.IsPublic && !Attribute.GetCustomAttributes(fi, typeof(UnityEngine.SerializeField)).Any())
+                    {
+                        continue;
+                    }
+
                     MemberExpression memberExpression = Expression.Field(o, fi);
 
                     var deserializeExpression = GenerateDeserializeValueExpression(si, memberExpression);
