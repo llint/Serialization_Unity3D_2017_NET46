@@ -11,14 +11,34 @@ public enum MyEnum { A, B, C };
 
 static class Helpers
 {
+    internal static string ToString<T>(T t)
+    {
+        return t.ToString();
+    }
+
     internal static string ToString<T>(T[] ta)
     {
-        return $"[{string.Join(",", ta.Select(t => t.ToString()))}]";
+        return $"[{string.Join(",", ta.Select(t => ToString(t)))}]";
     }
 
     internal static string ToString<T>(T[][] taa)
     {
         return $"[{string.Join(",", taa.Select(ta => ToString(ta)))}]";
+    }
+
+    internal static string ToString<T>(List<T>[] lta)
+    {
+        return $"({string.Join(",", lta.Select(lt => ToString(lt)))})";
+    }
+
+    internal static string ToString<T>(List<T> lt)
+    {
+        return $"({string.Join(",", lt.Select(t => ToString(t)))})";
+    }
+
+    internal static string ToString<T>(List<T[]> lt)
+    {
+        return $"({string.Join(",", lt.Select(ta => ToString(ta)))})";
     }
 }
 
@@ -35,6 +55,8 @@ public class Base
 
     public int i = 0;
 
+    public List<string[]> ls = new List<string[]>();
+
     public byte[] buffer = new byte[0];
 
 	public Struct[][] taa = new Struct[0][];
@@ -43,7 +65,7 @@ public class Base
 
     public override string ToString()
 	{
-		return $"Base: i={i}, buffer={Helpers.ToString(buffer)}, taa={Helpers.ToString(taa)}, saa={Helpers.ToString(saa)}";
+		return $"Base: i={i}, ls={Helpers.ToString(ls)}, buffer={Helpers.ToString(buffer)}, taa={Helpers.ToString(taa)}, saa={Helpers.ToString(saa)}";
 	}
 }
 
@@ -87,6 +109,7 @@ public class Test : MonoBehaviour
         SerializationOutput so = new SerializationOutput();
         Base o = new Base {
             i = 42,
+            ls = new List<string[]> { new string[] { "hello", "world" } },
             buffer = new byte[] {42, 42, 42, 42},
             saa = new string[][] {
                 new string[] {"X", "Y", "Z"},
