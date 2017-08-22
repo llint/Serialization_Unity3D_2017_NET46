@@ -5,8 +5,6 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-using Serialization;
-
 public enum MyEnum { A, B, C };
 
 static class Helpers
@@ -104,9 +102,9 @@ public class Test : MonoBehaviour
         Debug.Log("Hello Unity 2017.1");
 
         // NB: only the runtime code should invoke this
-        // Serialization.Serialization.Initialize();
+        Serialization.Serialization.Initialize();
+        Legacy.SerializableTypeRegistry.Initialize();
 
-        SerializationOutput so = new SerializationOutput();
         Base o = new Base {
             i = 42,
             ls = new List<string[]> { new string[] { "hello", "world" } },
@@ -134,13 +132,57 @@ public class Test : MonoBehaviour
                 },
             }
         };
-        so.Serialize(o);
 
-        SerializationInput si = new SerializationInput(so.GetStream());
-        Base o2;
-        si.Deserialize(out o2);
+        const int COUNTER = 1000;
 
-        Debug.Log($"o2: {o2}");
+        var stopWatch = new System.Diagnostics.Stopwatch();
+
+        {
+            Serialization.SerializationOutput so = new Serialization.SerializationOutput();
+
+            stopWatch.Start();
+            for (int i = 0; i < COUNTER; ++i)
+            {
+                so.Serialize(o);
+            }
+            stopWatch.Stop();
+            Debug.Log($"Serialize: {stopWatch.ElapsedMilliseconds}");
+
+            Serialization.SerializationInput si = new Serialization.SerializationInput(so.GetStream());
+
+            stopWatch.Start();
+            for (int i = 0; i < COUNTER; ++i)
+            {
+                Base o2;
+                si.Deserialize(out o2);
+            }
+            stopWatch.Stop();
+            Debug.Log($"Deserialize: {stopWatch.ElapsedMilliseconds}");
+
+            // Debug.Log($"o2: {o2}");
+        }
+
+        {
+            Legacy.SerializationOutput so = new Legacy.SerializationOutput();
+            stopWatch.Start();
+            for (int i = 0; i < COUNTER; ++i)
+            {
+                so.Serialize(o);
+            }
+            stopWatch.Stop();
+            Debug.Log($"Legacy.Serialize: {stopWatch.ElapsedMilliseconds}");
+
+            Legacy.SerializationInput si = new Legacy.SerializationInput(so.GetStream());
+            stopWatch.Start();
+            for (int i = 0; i < COUNTER; ++i)
+            {
+                Base o2 = (Base)si.Serialize(typeof(Base));
+            }
+            stopWatch.Stop();
+            Debug.Log($"Legacy.Deserialize: {stopWatch.ElapsedMilliseconds}");
+
+            // Debug.Log($"o2: {o2}");
+        }
     }
 
     // Update is called once per frame
