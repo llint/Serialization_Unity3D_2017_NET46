@@ -260,17 +260,29 @@ namespace Serialization
     {
         static partial void Initialize()
         {
-            instantiationDelegates = new Func<object>[]
+            serializableTypes = new Type[]
             {
-                () => new Base(),
-                () => new Derived(),
-                () => new Struct(),
+                typeof(Base),
+                typeof(Derived),
+                typeof(Struct),
             };
             typeIndexMapping = new Dictionary<Type, int>
             {
-                { typeof(Base), 0},
-                { typeof(Derived), 1},
-                { typeof(Struct), 2},
+                { typeof(Base), 0 },
+                { typeof(Derived), 1 },
+                { typeof(Struct), 2 },
+            };
+            typeSerializeDelegateMapping = new Dictionary<Type, Serialize>
+            {
+                { typeof(Base), (SerializationOutput so, object o) => so.Serialize((Base)o) },
+                { typeof(Derived), (SerializationOutput so, object o) => so.Serialize((Derived)o) },
+                { typeof(Struct), (SerializationOutput so, object o) => so.Serialize((Struct)o) },
+            };
+            typeDeserializeDelegateMapping = new Dictionary<Type, Deserialize>
+            {
+                { typeof(Base), (SerializationInput si, out object o) => { Base x; si.Deserialize(out x); o = x; return si; } },
+                { typeof(Derived), (SerializationInput si, out object o) => { Derived x; si.Deserialize(out x); o = x; return si; } },
+                { typeof(Struct), (SerializationInput si, out object o) => { Struct x; si.Deserialize(out x); o = x; return si; } },
             };
         }
     }

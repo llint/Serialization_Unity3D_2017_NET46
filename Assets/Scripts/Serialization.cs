@@ -215,20 +215,30 @@ namespace Serialization
             var bodyInitializeMethod = bodySerializableTypesRegistry
                 .AddLine("static partial void Initialize()")
                 .AddBlock();
-            var bodyInstantiationDelegates = bodyInitializeMethod
-                .AddLine("instantiationDelegates = new Func<object>[]")
+            var bodySerializableTypes = bodyInitializeMethod
+                .AddLine("serializableTypes = new Type[]")
                 .AddBlock()
                 .WithSemicolon();
             var bodyTypeIndexMapping = bodyInitializeMethod
                 .AddLine("typeIndexMapping = new Dictionary<Type, int>")
                 .AddBlock()
                 .WithSemicolon();
+            var bodyTypeSerializeDelegateMapping = bodyInitializeMethod
+                .AddLine("typeSerializeDelegateMapping = new Dictionary<Type, Serialize>")
+                .AddBlock()
+                .WithSemicolon();
+            var bodyTypeDeserializeDelegateMapping = bodyInitializeMethod
+                .AddLine("typeDeserializeDelegateMapping = new Dictionary<Type, Deserialize>")
+                .AddBlock()
+                .WithSemicolon();
 
             int idx = 0;
             foreach (var type in serializableTypes)
             {
-                bodyInstantiationDelegates.AddLine($"() => new {GetStringRep(type)}(),");
-                bodyTypeIndexMapping.AddLine($"{{ typeof({GetStringRep(type)}), {idx}}},");
+                bodySerializableTypes.AddLine($"typeof({GetStringRep(type)}),");
+                bodyTypeIndexMapping.AddLine($"{{ typeof({GetStringRep(type)}), {idx} }},");
+                bodyTypeSerializeDelegateMapping.AddLine($"{{ typeof({GetStringRep(type)}), (SerializationOutput so, object o) => so.Serialize(({GetStringRep(type)})o) }},");
+                bodyTypeDeserializeDelegateMapping.AddLine($"{{ typeof({GetStringRep(type)}), (SerializationInput si, out object o) => {{ {GetStringRep(type)} x; si.Deserialize(out x); o = x; return si; }} }},");
 
                 ++idx;
             }
@@ -286,6 +296,47 @@ namespace Serialization
         }
 
         static partial void InitializeMapping();
+    }
+
+    // All the Serializable types, including value types, not just reference types
+    // We need to be able to instantiate a struct type for an interface reference!
+    static partial class SerializableTypesRegistry
+    {
+        static Type[] serializableTypes = new Type[0];
+        static Dictionary<Type, int> typeIndexMapping = new Dictionary<Type, int>();
+
+        public delegate SerializationOutput Serialize(SerializationOutput so, object o);
+        public delegate SerializationInput Deserialize(SerializationInput si, out object o);
+
+        static Dictionary<Type, Serialize> typeSerializeDelegateMapping = new Dictionary<Type, Serialize>();
+        static Dictionary<Type, Deserialize> typeDeserializeDelegateMapping = new Dictionary<Type, Deserialize>();
+
+        static SerializableTypesRegistry()
+        {
+            Initialize();
+        }
+
+        static partial void Initialize();
+
+        public static Type GetIndexedType(int typeIndex)
+        {
+            return serializableTypes[typeIndex];
+        }
+
+        public static int GetTypeIndex(Type type)
+        {
+            return typeIndexMapping[type];
+        }
+
+        public static Serialize GetSerializeWrapper(Type type)
+        {
+            return typeSerializeDelegateMapping[type];
+        }
+
+        public static Deserialize GetDeserializeWrapper(Type type)
+        {
+            return typeDeserializeDelegateMapping[type];
+        }
     }
 
     static partial class Serialization
@@ -394,11 +445,15 @@ namespace Serialization
 
                 var blockExpressions = new List<Expression>();
 
+                LabelTarget labelTarget = Expression.Label(typeof(SerializationOutput));
+                LabelExpression labelExpression = Expression.Label(labelTarget, so);
+
                 if (!type.IsValueType)
                 {
                     // so.Serialize(SerializableTypesRegistry.GetTypeIndex(o.GetType()));
                     var miGetType = typeof(object).GetMethod("GetType");
                     var exprGetType = Expression.Call(o, miGetType);
+                    // var ifthen = Expression.IfThen(Expression.NotEqual(exprGetType, Expression.Constant(type)), );
                     var miGetTypeIndex = typeof(SerializableTypesRegistry).GetMethod("GetTypeIndex", new[]{typeof(Type)});
                     var exprGetTypeIndex = Expression.Call(miGetTypeIndex, exprGetType);
                     var mi = TypeSerializationMethodMapping.TypeSerializeMethodMapping[typeof(int)];
@@ -416,9 +471,7 @@ namespace Serialization
                     blockExpressions.Add(serializeExpression);
                 }
 
-                LabelTarget labelTarget = Expression.Label(typeof(SerializationOutput));
                 GotoExpression returnExpression = Expression.Return(labelTarget, so, typeof(SerializationOutput));
-                LabelExpression labelExpression = Expression.Label(labelTarget, so);
 
                 blockExpressions.Add(returnExpression);
                 blockExpressions.Add(labelExpression);
@@ -567,31 +620,6 @@ namespace Serialization
 
                 return lambda.Compile();
             }
-        }
-    }
-
-    // All the Serializable types, including value types, not just reference types
-    // We need to be able to instantiate a struct type for an interface reference!
-    static partial class SerializableTypesRegistry
-    {
-        static Func<object>[] instantiationDelegates = new Func<object>[0];
-        static Dictionary<Type, int> typeIndexMapping = new Dictionary<Type, int>();
-
-        static SerializableTypesRegistry()
-        {
-            Initialize();
-        }
-
-        static partial void Initialize();
-
-        public static object Instantiate(int typeIndex)
-        {
-            return instantiationDelegates[typeIndex]();
-        }
-
-        public static int GetTypeIndex(Type type)
-        {
-            return typeIndexMapping[type];
         }
     }
 
