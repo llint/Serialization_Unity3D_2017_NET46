@@ -110,6 +110,7 @@
     <Compile Include="Assets\Scripts\CodeGen.cs" />
     <Compile Include="Assets\Scripts\Serialization.cs" />
     <Compile Include="Assets\Scripts\Serialization_Generated.cs" />
+    <Compile Include="Assets\Scripts\Serialization_Legacy.cs" />
     <Compile Include="Assets\Scripts\Test.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
