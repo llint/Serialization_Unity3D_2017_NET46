@@ -328,12 +328,12 @@ namespace Serialization
             return typeIndexMapping[type];
         }
 
-        public static Serialize GetSerializeWrapper(Type type)
+        public static Serialize GetSerializeDelegate(Type type)
         {
             return typeSerializeDelegateMapping[type];
         }
 
-        public static Deserialize GetDeserializeWrapper(Type type)
+        public static Deserialize GetDeserializeDelegate(Type type)
         {
             return typeDeserializeDelegateMapping[type];
         }
@@ -450,10 +450,29 @@ namespace Serialization
 
                 if (!type.IsValueType)
                 {
-                    // so.Serialize(SerializableTypesRegistry.GetTypeIndex(o.GetType()));
+                    /*
+                        if (o.GetType() != typeof(T))
+                        {
+                            // 'o' is of a derived type of T, dispatch the serialization to it
+                            return SerializableTypesRegistry.GetSerializeDelegate(o.GetType())(so, o);
+                        }
+                        so.Serialize(SerializableTypesRegistry.GetTypeIndex(o.GetType()));
+                        ... serialize fields of T ...
+                        return so;
+                     */
                     var miGetType = typeof(object).GetMethod("GetType");
                     var exprGetType = Expression.Call(o, miGetType);
-                    // var ifthen = Expression.IfThen(Expression.NotEqual(exprGetType, Expression.Constant(type)), );
+                    var miGetSerializeDelegate =
+                        typeof(SerializableTypesRegistry).GetMethod("GetSerializeDelegate", new[]{typeof(Type)});
+                    var returnConcreteSerializeExpression =
+                        Expression.Return(labelTarget,
+                            Expression.Invoke(Expression.Call(miGetSerializeDelegate, exprGetType), so, o),
+                            typeof(SerializationOutput));
+                    var conditionalConcreteSerialize = Expression.IfThen(
+                        Expression.NotEqual(exprGetType, Expression.Constant(type)),
+                        returnConcreteSerializeExpression);
+                    Debug.Log(conditionalConcreteSerialize);
+                    blockExpressions.Add(conditionalConcreteSerialize);
                     var miGetTypeIndex = typeof(SerializableTypesRegistry).GetMethod("GetTypeIndex", new[]{typeof(Type)});
                     var exprGetTypeIndex = Expression.Call(miGetTypeIndex, exprGetType);
                     var mi = TypeSerializationMethodMapping.TypeSerializeMethodMapping[typeof(int)];
@@ -572,31 +591,67 @@ namespace Serialization
                 ParameterExpression si = Expression.Parameter(typeof(SerializationInput), "si");
                 ParameterExpression o = Expression.Parameter(type.MakeByRefType(), "o");
 
+                var blockVariables = new List<ParameterExpression>();
                 var blockExpressions = new List<Expression>();
+
+                LabelTarget labelTarget = Expression.Label(typeof(SerializationInput));
+                GotoExpression returnExpression = Expression.Return(labelTarget, si, typeof(SerializationInput));
 
                 if (!type.IsValueType)
                 {
-                    // { int typeIndex; si.Deserialize(out typeIndex); o = (T)SerializableTypesRegistry.Instantiate(typeIndex); }
+                    /*
+                        int typeIndex;
+                        si.Deserialize(out typeIndex);
+                        var concreteType;
+                        concreteType = SerializableTypesRegistry.GetIndexedType(typeIndex);
+                        if (concreteType != typeof(T))
+                        {
+                            si.Rewind(); // so the typeIndex can be read again
+                            object x;
+                            SerializableTypesRegistry.GetDeserializeDelegate(concreteType)(si, out x);
+                            o = (T)x;
+                            return si;
+                        }
+
+                        o = new T();
+                        ... deserialize fields of T ...
+                        return si;
+                     */
                     var typeIndex = Expression.Variable(typeof(int), "typeIndex");
+                    blockVariables.Add(typeIndex);
                     var mi = TypeSerializationMethodMapping.TypeDeserializeMethodMapping[typeof(int)];
                     var deserializeTypeIndex = Expression.Call(si, mi, typeIndex);
-                    var miInstantiate = typeof(SerializableTypesRegistry).GetMethod("Instantiate", new[]{typeof(int)});
-                    var instantiateExpression = Expression.Call(miInstantiate, typeIndex);
-                    var instantiateAssignExpression = Expression.Assign(o, Expression.Convert(instantiateExpression, type));
-                    var deserializeInstantiateBlock = Expression.Block(
-                        new[]{typeIndex},
-                        deserializeTypeIndex,
-                        instantiateAssignExpression
-                    );
-                    Debug.Log(deserializeInstantiateBlock);
-                    blockExpressions.Add(deserializeInstantiateBlock);
+                    blockExpressions.Add(deserializeTypeIndex);
+                    var miGetIndexedType = typeof(SerializableTypesRegistry).GetMethod("GetIndexedType", new[] {typeof(int)});
+                    var concreteType = Expression.Variable(typeof(Type), "concreteType");
+                    blockVariables.Add(concreteType);
+                    var assignConcreteTypeExpression = Expression.Assign(concreteType, Expression.Call(miGetIndexedType, typeIndex));
+                    blockExpressions.Add(assignConcreteTypeExpression);
+                    var miRewind = typeof(SerializationInput).GetMethod("Rewind");
+                    var x = Expression.Variable(typeof(object), "x");
+                    var miGetDeserializeDelegate =
+                        typeof(SerializableTypesRegistry).GetMethod("GetDeserializeDelegate", new[] {typeof(Type)});
+                    var concreteDeserialize =
+                        Expression.Invoke(Expression.Call(miGetDeserializeDelegate, concreteType), si, x);
+                    var assign = Expression.Assign(o, Expression.Convert(x, type));
+                    var conditionalConcreteDeserialize =
+                        Expression.IfThen(
+                            Expression.NotEqual(concreteType, Expression.Constant(type)),
+                            Expression.Block(
+                                new[] {x},
+                                Expression.Call(si, miRewind),
+                                concreteDeserialize,
+                                assign,
+                                returnExpression // labelExpression is at the end of the entire block (below)
+                            )
+                        );
+                    Debug.Log(conditionalConcreteDeserialize.ToString());
+                    blockExpressions.Add(conditionalConcreteDeserialize);
                 }
-                else
-                {
-                    BinaryExpression instantiateExpression = Expression.Assign(o, Expression.New(type));
-                    Debug.Log(instantiateExpression.ToString());
-                    blockExpressions.Add(instantiateExpression);
-                }
+
+                BinaryExpression instantiateExpression = Expression.Assign(o, Expression.New(type));
+                Debug.Log(instantiateExpression.ToString());
+                blockExpressions.Add(instantiateExpression);
 
                 foreach (var fi in type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
                 {
@@ -607,15 +662,13 @@ namespace Serialization
                     blockExpressions.Add(deserializeExpression);
                 }
 
-                LabelTarget labelTarget = Expression.Label(typeof(SerializationInput));
-                GotoExpression returnExpression = Expression.Return(labelTarget, si, typeof(SerializationInput));
                 LabelExpression labelExpression = Expression.Label(labelTarget, si);
 
                 blockExpressions.Add(returnExpression);
                 blockExpressions.Add(labelExpression);
 
                 var lambda = Expression.Lambda<Delegate_Deserialize>(
-                    Expression.Block(typeof(SerializationInput), blockExpressions), si, o);
+                    Expression.Block(typeof(SerializationInput), blockVariables, blockExpressions), si, o);
                 Debug.Log(lambda.ToString());
 
                 return lambda.Compile();
