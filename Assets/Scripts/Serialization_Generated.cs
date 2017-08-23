@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace Serialization
 {
-    partial class SerializationOutput
+    public partial class SerializationOutput
     {
         public SerializationOutput Serialize(Boolean value)
         {
@@ -82,7 +82,7 @@ namespace Serialization
             return SerializationHelper<Struct>.Serialize(this, value);
         }
     }
-    partial class SerializationInput
+    public partial class SerializationInput
     {
         public SerializationInput Deserialize(out Boolean value)
         {
@@ -210,7 +210,7 @@ namespace Serialization
             return SerializationHelper<Struct>.Deserialize(this, out value);
         }
     }
-    static partial class TypeSerializationMethodMapping
+    public static partial class TypeSerializationMethodMapping
     {
         static partial void InitializeMapping()
         {
@@ -256,7 +256,7 @@ namespace Serialization
             };
         }
     }
-    static partial class SerializableTypesRegistry
+    public static partial class SerializableTypesRegistry
     {
         static partial void Initialize()
         {
@@ -286,7 +286,7 @@ namespace Serialization
             };
         }
     }
-    static partial class Serialization
+    public static partial class Serialization
     {
         static partial void InitializeImpl()
         {

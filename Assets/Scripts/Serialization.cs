@@ -111,7 +111,7 @@ namespace Serialization
         static void GeneratePartialSerializationOutputClass(CodeGen.CodeBlock bodyNameSpace)
         {
             var bodySerializationOutputClass =
-                bodyNameSpace.AddLine("partial class SerializationOutput").AddBlock();
+                bodyNameSpace.AddLine("public partial class SerializationOutput").AddBlock();
 
             foreach (var type in types4CodeGen)
             {
@@ -137,7 +137,7 @@ namespace Serialization
         static void GeneratePartialSerializationInputClass(CodeGen.CodeBlock bodyNameSpace)
         {
             var bodySerializationInputClass =
-                bodyNameSpace.AddLine("partial class SerializationInput").AddBlock();
+                bodyNameSpace.AddLine("public partial class SerializationInput").AddBlock();
 
             foreach (var type in types4CodeGen)
             {
@@ -169,7 +169,7 @@ namespace Serialization
         static void GenerateTypeSerializationMethodMapping(CodeGen.CodeBlock bodyNameSpace)
         {
             var bodyTypeSerializationMethodMappingClass =
-                bodyNameSpace.AddLine("static partial class TypeSerializationMethodMapping")
+                bodyNameSpace.AddLine("public static partial class TypeSerializationMethodMapping")
                 .AddBlock();
 
             var bodyInitializeMapping =
@@ -210,7 +210,7 @@ namespace Serialization
         static void GenerateSerializableTypesRegistry(CodeGen.CodeBlock bodyNameSpace)
         {
             var bodySerializableTypesRegistry = bodyNameSpace
-                .AddLine("static partial class SerializableTypesRegistry")
+                .AddLine("public static partial class SerializableTypesRegistry")
                 .AddBlock();
             var bodyInitializeMethod = bodySerializableTypesRegistry
                 .AddLine("static partial void Initialize()")
@@ -247,7 +247,7 @@ namespace Serialization
         static void GenerateGlobalInitializationImpl(CodeGen.CodeBlock bodyNameSpace)
         {
             var bodySerializationClass = bodyNameSpace
-                .AddLine("static partial class Serialization")
+                .AddLine("public static partial class Serialization")
                 .AddBlock();
             var bodyInitializeImplMethod = bodySerializationClass
                 .AddLine("static partial void InitializeImpl()")
@@ -283,11 +283,11 @@ namespace Serialization
         }
     }
 
-    static partial class TypeSerializationMethodMapping
+    public static partial class TypeSerializationMethodMapping
     {
-        internal static Dictionary<Type, MethodInfo> TypeSerializeMethodMapping
+        public static Dictionary<Type, MethodInfo> TypeSerializeMethodMapping
             = new Dictionary<Type, MethodInfo>();
-        internal static Dictionary<Type, MethodInfo> TypeDeserializeMethodMapping
+        public static Dictionary<Type, MethodInfo> TypeDeserializeMethodMapping
             = new Dictionary<Type, MethodInfo>();
 
         static TypeSerializationMethodMapping()
@@ -300,7 +300,7 @@ namespace Serialization
 
     // All the Serializable types, including value types, not just reference types
     // We need to be able to instantiate a struct type for an interface reference!
-    static partial class SerializableTypesRegistry
+    public static partial class SerializableTypesRegistry
     {
         static Type[] serializableTypes = new Type[0];
         static Dictionary<Type, int> typeIndexMapping = new Dictionary<Type, int>();
@@ -339,9 +339,9 @@ namespace Serialization
         }
     }
 
-    static partial class Serialization
+    public static partial class Serialization
     {
-        internal static void Initialize()
+        public static void Initialize()
         {
             InitializeImpl();
         }
@@ -349,13 +349,13 @@ namespace Serialization
         static partial void InitializeImpl();
     }
 
-    static class SerializationHelper<T>
+    public static class SerializationHelper<T>
     {
-        internal delegate SerializationOutput Delegate_Serialize(SerializationOutput so, T o);
-        internal delegate SerializationInput Delegate_Deserialize(SerializationInput si, out T o);
+        public delegate SerializationOutput Delegate_Serialize(SerializationOutput so, T o);
+        public delegate SerializationInput Delegate_Deserialize(SerializationInput si, out T o);
 
-        internal static Delegate_Serialize Serialize { get; private set; }
-        internal static Delegate_Deserialize Deserialize { get; private set; }
+        public static Delegate_Serialize Serialize { get; private set; }
+        public static Delegate_Deserialize Deserialize { get; private set; }
 
         static SerializationHelper()
         {
@@ -363,7 +363,7 @@ namespace Serialization
             Deserialize = DeserializeDelegateCreationHelper.CreateDelegate();
         }
 
-        internal static void CreateDelegates()
+        public static void CreateDelegates()
         {
             // NB: this method doesn't do anything by itself, but if being invoked early,
             // this triggers the static constructor to be executed, if not yet done already
@@ -477,7 +477,7 @@ namespace Serialization
             }
 
             // (so, o) => {so.Serialize(o.i);so.Serialize(o.s);so.Serialize(o.a);return so;}
-            internal static Delegate_Serialize CreateDelegate()
+            public static Delegate_Serialize CreateDelegate()
             {
                 var type = typeof(T);
                 ParameterExpression so = Expression.Parameter(typeof(SerializationOutput), "so");
@@ -690,7 +690,7 @@ namespace Serialization
             }
 
             // (si, out o) => {o = new Base();si.Deserialize(out o.i);si.Deserialize(out o.s);return si;}
-            internal static Delegate_Deserialize CreateDelegate()
+            public static Delegate_Deserialize CreateDelegate()
             {
                 var type = typeof(T);
                 ParameterExpression si = Expression.Parameter(typeof(SerializationInput), "si");
@@ -791,11 +791,11 @@ namespace Serialization
         }
     }
 
-    class SerializationException : Exception
+    public class SerializationException : Exception
     {
     }
 
-    partial class SerializationOutput
+    public partial class SerializationOutput
     {
         MemoryStream stream;
 
@@ -843,7 +843,7 @@ namespace Serialization
         // small and fast copying - complex data types should be using 'class'
     }
 
-    partial class SerializationInput
+    public partial class SerializationInput
     {
         MemoryStream stream;
         long position;
