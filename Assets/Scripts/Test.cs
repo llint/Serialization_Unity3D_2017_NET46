@@ -140,7 +140,8 @@ public class Test : MonoBehaviour
         {
             Serialization.SerializationOutput so = new Serialization.SerializationOutput();
 
-            stopWatch.Start();
+            // stopWatch.Reset();
+            stopWatch.Restart();
             for (int i = 0; i < COUNTER; ++i)
             {
                 so.Serialize(o);
@@ -150,7 +151,8 @@ public class Test : MonoBehaviour
 
             Serialization.SerializationInput si = new Serialization.SerializationInput(so.GetStream());
 
-            stopWatch.Start();
+            // stopWatch.Reset();
+            stopWatch.Restart();
             for (int i = 0; i < COUNTER; ++i)
             {
                 Base o2;
@@ -164,7 +166,9 @@ public class Test : MonoBehaviour
 
         {
             Legacy.SerializationOutput so = new Legacy.SerializationOutput();
-            stopWatch.Start();
+
+            // stopWatch.Reset();
+            stopWatch.Restart();
             for (int i = 0; i < COUNTER; ++i)
             {
                 so.Serialize(o);
@@ -173,7 +177,9 @@ public class Test : MonoBehaviour
             Debug.Log($"Legacy.Serialize: {stopWatch.ElapsedMilliseconds}");
 
             Legacy.SerializationInput si = new Legacy.SerializationInput(so.GetStream());
-            stopWatch.Start();
+
+            // stopWatch.Reset();
+            stopWatch.Restart();
             for (int i = 0; i < COUNTER; ++i)
             {
                 Base o2 = (Base)si.Serialize(typeof(Base));
