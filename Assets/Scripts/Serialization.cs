@@ -362,11 +362,13 @@ namespace Serialization
 
         static partial void InitializeImpl(Module module);
 
-        public static void CreateAssembly(string dir)
+        public static void CreateAssembly()
         {
             var assemblyName = new AssemblyName("Serialization");
-            var assemblyBuilder =
-                Thread.GetDomain().DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.RunAndSave, dir);
+            var assemblyBuilder = Thread.GetDomain().DefineDynamicAssembly(
+                assemblyName,
+                AssemblyBuilderAccess.RunAndSave,
+                Path.Combine(Application.dataPath, "Assemblies"));
             var moduleBuilder = assemblyBuilder.DefineDynamicModule("Serialization", "Serialization.dll");
             CreateAssemblyImpl(moduleBuilder);
             assemblyBuilder.Save("Serialization.dll");
