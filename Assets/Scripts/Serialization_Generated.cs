@@ -287,7 +287,7 @@ namespace Serialization
             };
         }
     }
-    public static partial class Serialization
+    public static partial class AssemblyManager
     {
         static partial void InitializeImpl(Module module)
         {

@@ -249,7 +249,7 @@ namespace Serialization
         static void GenerateGlobalInitializationImpl(CodeGen.CodeBlock bodyNameSpace)
         {
             var bodySerializationClass = bodyNameSpace
-                .AddLine("public static partial class Serialization")
+                .AddLine("public static partial class AssemblyManager")
                 .AddBlock();
 
             var bodyInitializeImplMethod = bodySerializationClass
@@ -351,7 +351,7 @@ namespace Serialization
         }
     }
 
-    public static partial class Serialization
+    public static partial class AssemblyManager
     {
         public static void Initialize()
         {
