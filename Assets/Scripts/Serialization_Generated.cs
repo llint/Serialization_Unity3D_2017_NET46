@@ -289,7 +289,7 @@ namespace Serialization
     }
     public static partial class AssemblyManager
     {
-        static partial void InitializeImpl(Module module)
+        static partial void LoadAssemblyImpl(Module module)
         {
             SerializationHelper<Base>.CreateDelegates(module);
             SerializationHelper<Derived>.CreateDelegates(module);

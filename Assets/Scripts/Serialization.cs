@@ -248,19 +248,19 @@ namespace Serialization
 
         static void GenerateGlobalInitializationImpl(CodeGen.CodeBlock bodyNameSpace)
         {
-            var bodySerializationClass = bodyNameSpace
+            var bodyAssemblyManagerClass = bodyNameSpace
                 .AddLine("public static partial class AssemblyManager")
                 .AddBlock();
 
-            var bodyInitializeImplMethod = bodySerializationClass
-                .AddLine("static partial void InitializeImpl(Module module)")
+            var bodyLoadAssemblyImplMethod = bodyAssemblyManagerClass
+                .AddLine("static partial void LoadAssemblyImpl(Module module)")
                 .AddBlock();
             foreach (var type in serializableTypes)
             {
-                bodyInitializeImplMethod.AddLine($"SerializationHelper<{GetStringRep(type)}>.CreateDelegates(module);");
+                bodyLoadAssemblyImplMethod.AddLine($"SerializationHelper<{GetStringRep(type)}>.CreateDelegates(module);");
             }
 
-            var bodyCreateAssemblyImplMethod = bodySerializationClass
+            var bodyCreateAssemblyImplMethod = bodyAssemblyManagerClass
                 .AddLine("static partial void CreateAssemblyImpl(ModuleBuilder moduleBuilder)")
                 .AddBlock();
             foreach (var type in serializableTypes)
@@ -353,14 +353,14 @@ namespace Serialization
 
     public static partial class AssemblyManager
     {
-        public static void Initialize()
+        public static void LoadAssembly()
         {
             var assembly = Assembly.LoadFrom(Path.Combine(Application.dataPath, "Assemblies/Serialization.dll"));
             var module = assembly.GetModule("Serialization");
-            InitializeImpl(module);
+            LoadAssemblyImpl(module);
         }
 
-        static partial void InitializeImpl(Module module);
+        static partial void LoadAssemblyImpl(Module module);
 
         public static void CreateAssembly()
         {
