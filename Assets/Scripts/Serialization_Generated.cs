@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Reflection;
+using System.Reflection.Emit;
 using System.Collections.Generic;
 
 using UnityEngine;
@@ -293,6 +294,12 @@ namespace Serialization
             SerializationHelper<Base>.CreateDelegates();
             SerializationHelper<Derived>.CreateDelegates();
             SerializationHelper<Struct>.CreateDelegates();
+        }
+        static partial void CreateAssemblyImpl(ModuleBuilder moduleBuilder)
+        {
+            SerializationHelper<Base>.CreateAssembly(moduleBuilder);
+            SerializationHelper<Derived>.CreateAssembly(moduleBuilder);
+            SerializationHelper<Struct>.CreateAssembly(moduleBuilder);
         }
     }
 }

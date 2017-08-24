@@ -2,7 +2,9 @@
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Reflection;
+using System.Reflection.Emit;
 using System.Collections;
 using System.Linq.Expressions;
 using System.Collections.Generic;
@@ -249,12 +251,21 @@ namespace Serialization
             var bodySerializationClass = bodyNameSpace
                 .AddLine("public static partial class Serialization")
                 .AddBlock();
+
             var bodyInitializeImplMethod = bodySerializationClass
                 .AddLine("static partial void InitializeImpl()")
                 .AddBlock();
             foreach (var type in serializableTypes)
             {
                 bodyInitializeImplMethod.AddLine($"SerializationHelper<{GetStringRep(type)}>.CreateDelegates();");
+            }
+
+            var bodyCreateAssemblyImplMethod = bodySerializationClass
+                .AddLine("static partial void CreateAssemblyImpl(ModuleBuilder moduleBuilder)")
+                .AddBlock();
+            foreach (var type in serializableTypes)
+            {
+                bodyCreateAssemblyImplMethod.AddLine($"SerializationHelper<{GetStringRep(type)}>.CreateAssembly(moduleBuilder);");
             }
         }
 
@@ -265,6 +276,7 @@ namespace Serialization
             doc.AddLine("using System;");
             doc.AddLine("using System.Linq;");
             doc.AddLine("using System.Reflection;");
+            doc.AddLine("using System.Reflection.Emit;");
             doc.AddLine("using System.Collections.Generic;");
             doc.AddLine();
             doc.AddLine("using UnityEngine;");
@@ -347,6 +359,18 @@ namespace Serialization
         }
 
         static partial void InitializeImpl();
+
+        public static void CreateAssembly(string dir)
+        {
+            var assemblyName = new AssemblyName("Serialization");
+            var assemblyBuilder =
+                Thread.GetDomain().DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.RunAndSave, dir);
+            var moduleBuilder = assemblyBuilder.DefineDynamicModule("Serialization", "Serialization.dll");
+            CreateAssemblyImpl(moduleBuilder);
+            assemblyBuilder.Save("Serialization.dll");
+        }
+
+        static partial void CreateAssemblyImpl(ModuleBuilder moduleBuilder);
     }
 
     public static class SerializationHelper<T>
@@ -359,14 +383,40 @@ namespace Serialization
 
         static SerializationHelper()
         {
-            Serialize = SerializeDelegateCreationHelper.CreateDelegate();
-            Deserialize = DeserializeDelegateCreationHelper.CreateDelegate();
+            // This is called during runtime, which should load the generated assembly
+            // and initialize the two delegates
+            // CreateDelegate should be invoked in the assembly generation phase
+            // We generate code for assembly creation!
+            // Serialize = SerializeDelegateCreationHelper.CreateDelegate();
+            // Deserialize = DeserializeDelegateCreationHelper.CreateDelegate();
         }
 
         public static void CreateDelegates()
         {
             // NB: this method doesn't do anything by itself, but if being invoked early,
             // this triggers the static constructor to be executed, if not yet done already
+        }
+
+        public static void CreateAssembly(ModuleBuilder moduleBuilder)
+        {
+            var typeBuilder = moduleBuilder.DefineType($"SerializationHelper_{typeof(T).Name}",
+                TypeAttributes.Public | TypeAttributes.Sealed | TypeAttributes.Abstract);
+
+            var serializeMethodBuilder = typeBuilder.DefineMethod(
+                "Serialize",
+                MethodAttributes.Public | MethodAttributes.Static,
+                typeof(SerializationOutput),
+                new[] { typeof(SerializationOutput), typeof(T) });
+            SerializeDelegateCreationHelper.CreateDelegate(serializeMethodBuilder);
+
+            var deserializeMethodBuilder = typeBuilder.DefineMethod(
+                "Deserialize",
+                MethodAttributes.Public | MethodAttributes.Static,
+                typeof(SerializationInput),
+                new[] { typeof(SerializationInput), typeof(T).MakeByRefType() });
+            DeserializeDelegateCreationHelper.CreateDelegate(deserializeMethodBuilder);
+
+            typeBuilder.CreateType();
         }
 
         static class SerializeDelegateCreationHelper
@@ -477,7 +527,7 @@ namespace Serialization
             }
 
             // (so, o) => {so.Serialize(o.i);so.Serialize(o.s);so.Serialize(o.a);return so;}
-            public static Delegate_Serialize CreateDelegate()
+            public static void CreateDelegate(MethodBuilder methodBuilder)
             {
                 var type = typeof(T);
                 ParameterExpression so = Expression.Parameter(typeof(SerializationOutput), "so");
@@ -557,7 +607,7 @@ namespace Serialization
                     Expression.Block(typeof(SerializationOutput), blockVariables, blockExpressions), so, o);
                 Debug.Log(lambda.ToString());
 
-                return lambda.Compile();
+                lambda.CompileToMethod(methodBuilder);
             }
         }
 
@@ -690,7 +740,7 @@ namespace Serialization
             }
 
             // (si, out o) => {o = new Base();si.Deserialize(out o.i);si.Deserialize(out o.s);return si;}
-            public static Delegate_Deserialize CreateDelegate()
+            public static void CreateDelegate(MethodBuilder methodBuilder)
             {
                 var type = typeof(T);
                 ParameterExpression si = Expression.Parameter(typeof(SerializationInput), "si");
@@ -786,7 +836,7 @@ namespace Serialization
                     Expression.Block(typeof(SerializationInput), blockVariables, blockExpressions), si, o);
                 Debug.Log(lambda.ToString());
 
-                return lambda.Compile();
+                lambda.CompileToMethod(methodBuilder);
             }
         }
     }
