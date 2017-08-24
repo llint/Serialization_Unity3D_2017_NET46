@@ -248,19 +248,19 @@ namespace Serialization
 
         static void GenerateGlobalInitializationImpl(CodeGen.CodeBlock bodyNameSpace)
         {
-            var bodySerializationClass = bodyNameSpace
-                .AddLine("public static partial class Serialization")
+            var bodyAssemblyManagerClass = bodyNameSpace
+                .AddLine("public static partial class AssemblyManager")
                 .AddBlock();
 
-            var bodyInitializeImplMethod = bodySerializationClass
-                .AddLine("static partial void InitializeImpl(Module module)")
+            var bodyLoadAssemblyImplMethod = bodyAssemblyManagerClass
+                .AddLine("static partial void LoadAssemblyImpl(Module module)")
                 .AddBlock();
             foreach (var type in serializableTypes)
             {
-                bodyInitializeImplMethod.AddLine($"SerializationHelper<{GetStringRep(type)}>.CreateDelegates(module);");
+                bodyLoadAssemblyImplMethod.AddLine($"SerializationHelper<{GetStringRep(type)}>.CreateDelegates(module);");
             }
 
-            var bodyCreateAssemblyImplMethod = bodySerializationClass
+            var bodyCreateAssemblyImplMethod = bodyAssemblyManagerClass
                 .AddLine("static partial void CreateAssemblyImpl(ModuleBuilder moduleBuilder)")
                 .AddBlock();
             foreach (var type in serializableTypes)
@@ -351,22 +351,24 @@ namespace Serialization
         }
     }
 
-    public static partial class Serialization
+    public static partial class AssemblyManager
     {
-        public static void Initialize()
+        public static void LoadAssembly()
         {
             var assembly = Assembly.LoadFrom(Path.Combine(Application.dataPath, "Assemblies/Serialization.dll"));
             var module = assembly.GetModule("Serialization");
-            InitializeImpl(module);
+            LoadAssemblyImpl(module);
         }
 
-        static partial void InitializeImpl(Module module);
+        static partial void LoadAssemblyImpl(Module module);
 
-        public static void CreateAssembly(string dir)
+        public static void CreateAssembly()
         {
             var assemblyName = new AssemblyName("Serialization");
-            var assemblyBuilder =
-                Thread.GetDomain().DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.RunAndSave, dir);
+            var assemblyBuilder = Thread.GetDomain().DefineDynamicAssembly(
+                assemblyName,
+                AssemblyBuilderAccess.RunAndSave,
+                Path.Combine(Application.dataPath, "Assemblies"));
             var moduleBuilder = assemblyBuilder.DefineDynamicModule("Serialization", "Serialization.dll");
             CreateAssemblyImpl(moduleBuilder);
             assemblyBuilder.Save("Serialization.dll");
@@ -383,9 +385,19 @@ namespace Serialization
         public static Delegate_Serialize Serialize { get; private set; }
         public static Delegate_Deserialize Deserialize { get; private set; }
 
+        static string GetNestedTypeName(Type type)
+        {
+            if (type.DeclaringType == null)
+            {
+                return type.Name;
+            }
+
+            return $"{GetNestedTypeName(type.DeclaringType)}_{type.Name}";
+        }
+
         public static void CreateDelegates(Module module)
         {
-            var type = module.GetType($"SerializationHelper_{typeof(T).Name}");
+            var type = module.GetType($"SerializationHelper_{GetNestedTypeName(typeof(T))}");
 
             var miSerialize = type.GetMethod("Serialize", new[] { typeof(SerializationOutput), typeof(T) });
             Serialize = (Delegate_Serialize)Delegate.CreateDelegate(typeof(Delegate_Serialize), miSerialize);
@@ -396,7 +408,7 @@ namespace Serialization
 
         public static void CreateAssembly(ModuleBuilder moduleBuilder)
         {
-            var typeBuilder = moduleBuilder.DefineType($"SerializationHelper_{typeof(T).Name}", // TODO: GetStringRep(type)
+            var typeBuilder = moduleBuilder.DefineType($"SerializationHelper_{GetNestedTypeName(typeof(T))}",
                 TypeAttributes.Public | TypeAttributes.Sealed | TypeAttributes.Abstract);
 
             var serializeMethodBuilder = typeBuilder.DefineMethod(
@@ -404,14 +416,14 @@ namespace Serialization
                 MethodAttributes.Public | MethodAttributes.Static,
                 typeof(SerializationOutput),
                 new[] { typeof(SerializationOutput), typeof(T) });
-            SerializeDelegateCreationHelper.CreateDelegate(serializeMethodBuilder);
+            SerializeDelegateCreationHelper.CreateAssembly(serializeMethodBuilder);
 
             var deserializeMethodBuilder = typeBuilder.DefineMethod(
                 "Deserialize",
                 MethodAttributes.Public | MethodAttributes.Static,
                 typeof(SerializationInput),
                 new[] { typeof(SerializationInput), typeof(T).MakeByRefType() });
-            DeserializeDelegateCreationHelper.CreateDelegate(deserializeMethodBuilder);
+            DeserializeDelegateCreationHelper.CreateAssembly(deserializeMethodBuilder);
 
             typeBuilder.CreateType();
         }
@@ -524,7 +536,7 @@ namespace Serialization
             }
 
             // (so, o) => {so.Serialize(o.i);so.Serialize(o.s);so.Serialize(o.a);return so;}
-            public static void CreateDelegate(MethodBuilder methodBuilder)
+            public static void CreateAssembly(MethodBuilder methodBuilder)
             {
                 var type = typeof(T);
                 ParameterExpression so = Expression.Parameter(typeof(SerializationOutput), "so");
@@ -737,7 +749,7 @@ namespace Serialization
             }
 
             // (si, out o) => {o = new Base();si.Deserialize(out o.i);si.Deserialize(out o.s);return si;}
-            public static void CreateDelegate(MethodBuilder methodBuilder)
+            public static void CreateAssembly(MethodBuilder methodBuilder)
             {
                 var type = typeof(T);
                 ParameterExpression si = Expression.Parameter(typeof(SerializationInput), "si");

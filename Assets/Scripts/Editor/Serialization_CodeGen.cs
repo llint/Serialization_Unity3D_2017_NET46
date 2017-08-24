@@ -17,6 +17,6 @@ public class MenuItems
     [MenuItem("Tools/Serialization CreateAssembly")]
     private static void CreateAssembly()
     {
-        Serialization.Serialization.CreateAssembly(Path.Combine(Application.dataPath, "Assemblies"));
+        Serialization.AssemblyManager.CreateAssembly();
     }
 }
