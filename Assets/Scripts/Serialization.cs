@@ -253,11 +253,11 @@ namespace Serialization
                 .AddBlock();
 
             var bodyInitializeImplMethod = bodySerializationClass
-                .AddLine("static partial void InitializeImpl()")
+                .AddLine("static partial void InitializeImpl(Module module)")
                 .AddBlock();
             foreach (var type in serializableTypes)
             {
-                bodyInitializeImplMethod.AddLine($"SerializationHelper<{GetStringRep(type)}>.CreateDelegates();");
+                bodyInitializeImplMethod.AddLine($"SerializationHelper<{GetStringRep(type)}>.CreateDelegates(module);");
             }
 
             var bodyCreateAssemblyImplMethod = bodySerializationClass
@@ -355,10 +355,12 @@ namespace Serialization
     {
         public static void Initialize()
         {
-            InitializeImpl();
+            var assembly = Assembly.LoadFrom(Path.Combine(Application.dataPath, "Assemblies/Serialization.dll"));
+            var module = assembly.GetModule("Serialization");
+            InitializeImpl(module);
         }
 
-        static partial void InitializeImpl();
+        static partial void InitializeImpl(Module module);
 
         public static void CreateAssembly(string dir)
         {
@@ -381,25 +383,20 @@ namespace Serialization
         public static Delegate_Serialize Serialize { get; private set; }
         public static Delegate_Deserialize Deserialize { get; private set; }
 
-        static SerializationHelper()
+        public static void CreateDelegates(Module module)
         {
-            // This is called during runtime, which should load the generated assembly
-            // and initialize the two delegates
-            // CreateDelegate should be invoked in the assembly generation phase
-            // We generate code for assembly creation!
-            // Serialize = SerializeDelegateCreationHelper.CreateDelegate();
-            // Deserialize = DeserializeDelegateCreationHelper.CreateDelegate();
-        }
+            var type = module.GetType($"SerializationHelper_{typeof(T).Name}");
 
-        public static void CreateDelegates()
-        {
-            // NB: this method doesn't do anything by itself, but if being invoked early,
-            // this triggers the static constructor to be executed, if not yet done already
+            var miSerialize = type.GetMethod("Serialize", new[] { typeof(SerializationOutput), typeof(T) });
+            Serialize = (Delegate_Serialize)Delegate.CreateDelegate(typeof(Delegate_Serialize), miSerialize);
+
+            var miDeserialize = type.GetMethod("Deserialize", new[] { typeof(SerializationInput), typeof(T).MakeByRefType() });
+            Deserialize = (Delegate_Deserialize)Delegate.CreateDelegate(typeof(Delegate_Deserialize), miDeserialize);
         }
 
         public static void CreateAssembly(ModuleBuilder moduleBuilder)
         {
-            var typeBuilder = moduleBuilder.DefineType($"SerializationHelper_{typeof(T).Name}",
+            var typeBuilder = moduleBuilder.DefineType($"SerializationHelper_{typeof(T).Name}", // TODO: GetStringRep(type)
                 TypeAttributes.Public | TypeAttributes.Sealed | TypeAttributes.Abstract);
 
             var serializeMethodBuilder = typeBuilder.DefineMethod(

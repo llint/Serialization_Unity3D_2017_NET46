@@ -289,11 +289,11 @@ namespace Serialization
     }
     public static partial class Serialization
     {
-        static partial void InitializeImpl()
+        static partial void InitializeImpl(Module module)
         {
-            SerializationHelper<Base>.CreateDelegates();
-            SerializationHelper<Derived>.CreateDelegates();
-            SerializationHelper<Struct>.CreateDelegates();
+            SerializationHelper<Base>.CreateDelegates(module);
+            SerializationHelper<Derived>.CreateDelegates(module);
+            SerializationHelper<Struct>.CreateDelegates(module);
         }
         static partial void CreateAssemblyImpl(ModuleBuilder moduleBuilder)
         {
