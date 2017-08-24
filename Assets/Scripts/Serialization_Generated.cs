@@ -1,13 +1,14 @@
 using System;
 using System.Linq;
 using System.Reflection;
+using System.Reflection.Emit;
 using System.Collections.Generic;
 
 using UnityEngine;
 
 namespace Serialization
 {
-    partial class SerializationOutput
+    public partial class SerializationOutput
     {
         public SerializationOutput Serialize(Boolean value)
         {
@@ -82,7 +83,7 @@ namespace Serialization
             return SerializationHelper<Struct>.Serialize(this, value);
         }
     }
-    partial class SerializationInput
+    public partial class SerializationInput
     {
         public SerializationInput Deserialize(out Boolean value)
         {
@@ -210,7 +211,7 @@ namespace Serialization
             return SerializationHelper<Struct>.Deserialize(this, out value);
         }
     }
-    static partial class TypeSerializationMethodMapping
+    public static partial class TypeSerializationMethodMapping
     {
         static partial void InitializeMapping()
         {
@@ -256,7 +257,7 @@ namespace Serialization
             };
         }
     }
-    static partial class SerializableTypesRegistry
+    public static partial class SerializableTypesRegistry
     {
         static partial void Initialize()
         {
@@ -286,13 +287,19 @@ namespace Serialization
             };
         }
     }
-    static partial class Serialization
+    public static partial class Serialization
     {
-        static partial void InitializeImpl()
+        static partial void InitializeImpl(Module module)
         {
-            SerializationHelper<Base>.CreateDelegates();
-            SerializationHelper<Derived>.CreateDelegates();
-            SerializationHelper<Struct>.CreateDelegates();
+            SerializationHelper<Base>.CreateDelegates(module);
+            SerializationHelper<Derived>.CreateDelegates(module);
+            SerializationHelper<Struct>.CreateDelegates(module);
+        }
+        static partial void CreateAssemblyImpl(ModuleBuilder moduleBuilder)
+        {
+            SerializationHelper<Base>.CreateAssembly(moduleBuilder);
+            SerializationHelper<Derived>.CreateAssembly(moduleBuilder);
+            SerializationHelper<Struct>.CreateAssembly(moduleBuilder);
         }
     }
 }
