@@ -385,9 +385,19 @@ namespace Serialization
         public static Delegate_Serialize Serialize { get; private set; }
         public static Delegate_Deserialize Deserialize { get; private set; }
 
+        static string GetNestedTypeName(Type type)
+        {
+            if (type.DeclaringType == null)
+            {
+                return type.Name;
+            }
+
+            return $"{GetNestedTypeName(type.DeclaringType)}_{type.Name}";
+        }
+
         public static void CreateDelegates(Module module)
         {
-            var type = module.GetType($"SerializationHelper_{typeof(T).Name}");
+            var type = module.GetType($"SerializationHelper_{GetNestedTypeName(typeof(T))}");
 
             var miSerialize = type.GetMethod("Serialize", new[] { typeof(SerializationOutput), typeof(T) });
             Serialize = (Delegate_Serialize)Delegate.CreateDelegate(typeof(Delegate_Serialize), miSerialize);
@@ -398,7 +408,7 @@ namespace Serialization
 
         public static void CreateAssembly(ModuleBuilder moduleBuilder)
         {
-            var typeBuilder = moduleBuilder.DefineType($"SerializationHelper_{typeof(T).Name}", // TODO: GetStringRep(type)
+            var typeBuilder = moduleBuilder.DefineType($"SerializationHelper_{GetNestedTypeName(typeof(T))}",
                 TypeAttributes.Public | TypeAttributes.Sealed | TypeAttributes.Abstract);
 
             var serializeMethodBuilder = typeBuilder.DefineMethod(
