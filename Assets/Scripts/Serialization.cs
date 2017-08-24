@@ -404,14 +404,14 @@ namespace Serialization
                 MethodAttributes.Public | MethodAttributes.Static,
                 typeof(SerializationOutput),
                 new[] { typeof(SerializationOutput), typeof(T) });
-            SerializeDelegateCreationHelper.CreateDelegate(serializeMethodBuilder);
+            SerializeDelegateCreationHelper.CreateAssembly(serializeMethodBuilder);
 
             var deserializeMethodBuilder = typeBuilder.DefineMethod(
                 "Deserialize",
                 MethodAttributes.Public | MethodAttributes.Static,
                 typeof(SerializationInput),
                 new[] { typeof(SerializationInput), typeof(T).MakeByRefType() });
-            DeserializeDelegateCreationHelper.CreateDelegate(deserializeMethodBuilder);
+            DeserializeDelegateCreationHelper.CreateAssembly(deserializeMethodBuilder);
 
             typeBuilder.CreateType();
         }
@@ -524,7 +524,7 @@ namespace Serialization
             }
 
             // (so, o) => {so.Serialize(o.i);so.Serialize(o.s);so.Serialize(o.a);return so;}
-            public static void CreateDelegate(MethodBuilder methodBuilder)
+            public static void CreateAssembly(MethodBuilder methodBuilder)
             {
                 var type = typeof(T);
                 ParameterExpression so = Expression.Parameter(typeof(SerializationOutput), "so");
@@ -737,7 +737,7 @@ namespace Serialization
             }
 
             // (si, out o) => {o = new Base();si.Deserialize(out o.i);si.Deserialize(out o.s);return si;}
-            public static void CreateDelegate(MethodBuilder methodBuilder)
+            public static void CreateAssembly(MethodBuilder methodBuilder)
             {
                 var type = typeof(T);
                 ParameterExpression si = Expression.Parameter(typeof(SerializationInput), "si");
