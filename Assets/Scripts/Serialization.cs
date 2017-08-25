@@ -355,7 +355,8 @@ namespace Serialization
     {
         public static void LoadAssembly()
         {
-            var assembly = Assembly.LoadFrom(Path.Combine(Application.dataPath, "Assemblies/Serialization.dll"));
+            var assemblyName = new AssemblyName("Serialization");
+            var assembly = Assembly.Load(assemblyName);
             var module = assembly.GetModule("Serialization");
             LoadAssemblyImpl(module);
         }
