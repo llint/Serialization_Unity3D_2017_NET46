@@ -72,15 +72,15 @@ namespace Serialization
         }
         public SerializationOutput Serialize(Base value)
         {
-            return SerializationHelper<Base>.Serialize(this, value);
+            return SerializationHelper_Base.Serialize(this, value);
         }
         public SerializationOutput Serialize(Derived value)
         {
-            return SerializationHelper<Derived>.Serialize(this, value);
+            return SerializationHelper_Derived.Serialize(this, value);
         }
         public SerializationOutput Serialize(Struct value)
         {
-            return SerializationHelper<Struct>.Serialize(this, value);
+            return SerializationHelper_Struct.Serialize(this, value);
         }
     }
     public partial class SerializationInput
@@ -198,17 +198,20 @@ namespace Serialization
         public SerializationInput Deserialize(out Base value)
         {
             position = stream.Position;
-            return SerializationHelper<Base>.Deserialize(this, out value);
+            value = default(Base);
+            return SerializationHelper_Base.Deserialize(this, ref value);
         }
         public SerializationInput Deserialize(out Derived value)
         {
             position = stream.Position;
-            return SerializationHelper<Derived>.Deserialize(this, out value);
+            value = default(Derived);
+            return SerializationHelper_Derived.Deserialize(this, ref value);
         }
         public SerializationInput Deserialize(out Struct value)
         {
             position = stream.Position;
-            return SerializationHelper<Struct>.Deserialize(this, out value);
+            value = default(Struct);
+            return SerializationHelper_Struct.Deserialize(this, ref value);
         }
     }
     public static partial class TypeSerializationMethodMapping
@@ -291,9 +294,9 @@ namespace Serialization
     {
         static partial void LoadAssemblyImpl(Module module)
         {
-            SerializationHelper<Base>.CreateDelegates(module);
-            SerializationHelper<Derived>.CreateDelegates(module);
-            SerializationHelper<Struct>.CreateDelegates(module);
+            SerializationHelper<Base>.LoadAssembly(module);
+            SerializationHelper<Derived>.LoadAssembly(module);
+            SerializationHelper<Struct>.LoadAssembly(module);
         }
         static partial void CreateAssemblyImpl(ModuleBuilder moduleBuilder)
         {
