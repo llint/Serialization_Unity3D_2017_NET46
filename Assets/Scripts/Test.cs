@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -100,6 +101,16 @@ public class Test : MonoBehaviour
     void Start()
     {
         Debug.Log("Hello Unity 2017.1");
+
+        Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
+        Debug.Log($"Assemblies ({assemblies.Length}):\n{string.Join("\n", assemblies.Select(a => a.FullName))}]");
+        // var dict = assemblies.ToDictionary(assembly => assembly.FullName, assembly => assembly);
+        // Assembly serialization;
+        // var assemblyName = new AssemblyName("Serialization");
+        // if (dict.TryGetValue(assemblyName.FullName, out serialization))
+        // {
+        //     Debug.Log($"############ Serialization!");
+        // }
 
         // NB: only the runtime code should invoke this
         // Serialization.AssemblyManager.LoadAssembly(); -- DO NOT LOAD ASSEMBLY DURING RUNTIME!
