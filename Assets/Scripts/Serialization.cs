@@ -2,7 +2,6 @@
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Collections;
@@ -381,7 +380,7 @@ namespace Serialization
         public static void CreateAssembly()
         {
             var assemblyName = new AssemblyName("Serialization");
-            var assemblyBuilder = Thread.GetDomain().DefineDynamicAssembly(
+            var assemblyBuilder = AppDomain.CurrentDomain.DefineDynamicAssembly(
                 assemblyName,
                 AssemblyBuilderAccess.RunAndSave,
                 Path.Combine(Application.dataPath, "Assemblies"));

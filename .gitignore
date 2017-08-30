@@ -4,7 +4,7 @@
 Temp/
 Library/
 Build/
-Assemblies/
+Assemblies*
 
 # ===================================== #
 # Visual Studio / MonoDevelop generated #
