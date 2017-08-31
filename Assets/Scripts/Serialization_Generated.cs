@@ -72,15 +72,15 @@ namespace Serialization
         }
         public SerializationOutput Serialize(Base value)
         {
-            return SerializationHelper_Base.Serialize(this, value);
+            return SerializationHelper<Base>.Serialize(this, value);
         }
         public SerializationOutput Serialize(Derived value)
         {
-            return SerializationHelper_Derived.Serialize(this, value);
+            return SerializationHelper<Derived>.Serialize(this, value);
         }
         public SerializationOutput Serialize(Struct value)
         {
-            return SerializationHelper_Struct.Serialize(this, value);
+            return SerializationHelper<Struct>.Serialize(this, value);
         }
     }
     public partial class SerializationInput
@@ -198,20 +198,17 @@ namespace Serialization
         public SerializationInput Deserialize(out Base value)
         {
             position = stream.Position;
-            value = default(Base);
-            return SerializationHelper_Base.Deserialize(this, ref value);
+            return SerializationHelper<Base>.Deserialize(this, out value);
         }
         public SerializationInput Deserialize(out Derived value)
         {
             position = stream.Position;
-            value = default(Derived);
-            return SerializationHelper_Derived.Deserialize(this, ref value);
+            return SerializationHelper<Derived>.Deserialize(this, out value);
         }
         public SerializationInput Deserialize(out Struct value)
         {
             position = stream.Position;
-            value = default(Struct);
-            return SerializationHelper_Struct.Deserialize(this, ref value);
+            return SerializationHelper<Struct>.Deserialize(this, out value);
         }
     }
     public static partial class TypeSerializationMethodMapping

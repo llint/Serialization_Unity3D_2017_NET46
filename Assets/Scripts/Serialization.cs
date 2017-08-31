@@ -12,19 +12,51 @@ using UnityEngine;
 
 namespace Serialization
 {
-    public static class Utils
+    public static class SerializationCodeGenerator
     {
-        public static string GetNestedTypeName(Type type)
-        {
-            if (type.DeclaringType == null)
-            {
-                return type.Name;
-            }
+        static readonly Type[] types4CodeGen = new Type[] {
+            typeof(Boolean),
+            typeof(Char),
+            typeof(Int16),
+            typeof(UInt16),
+            typeof(Int32),
+            typeof(UInt32),
+            typeof(Int64),
+            typeof(UInt64),
+            typeof(Single),
+            typeof(Double),
+        };
 
-            return $"{GetNestedTypeName(type.DeclaringType)}_{type.Name}";
+        static readonly Type[] fundamentalTypes = new Type[] {
+            // types that are the same as types4CodeGen
+            typeof(Boolean),
+            typeof(Char),
+            typeof(Int16),
+            typeof(UInt16),
+            typeof(Int32),
+            typeof(UInt32),
+            typeof(Int64),
+            typeof(UInt64),
+            typeof(Single),
+            typeof(Double),
+
+            // below are the types that I hand-coded
+            typeof(Byte),
+            typeof(SByte),
+            typeof(String),
+            typeof(byte[]),
+        };
+
+        static readonly Type[] serializableTypes = new Type[0];
+
+        static SerializationCodeGenerator()
+        {
+            serializableTypes = Assembly.GetExecutingAssembly().GetTypes()
+                .Where(type => type.GetCustomAttributes(typeof(SerializableAttribute), false).Length > 0)
+                .ToArray();
         }
 
-        public static string GetStringRep(Type t, bool processDeclaringType = true)
+        static string GetStringRep(Type t, bool processDeclaringType = true)
         {
             if (t.IsArray)
             {
@@ -76,51 +108,6 @@ namespace Serialization
 
             return t.Name;
         }
-    }
-
-    public static class SerializationCodeGenerator
-    {
-        static readonly Type[] types4CodeGen = new Type[] {
-            typeof(Boolean),
-            typeof(Char),
-            typeof(Int16),
-            typeof(UInt16),
-            typeof(Int32),
-            typeof(UInt32),
-            typeof(Int64),
-            typeof(UInt64),
-            typeof(Single),
-            typeof(Double),
-        };
-
-        static readonly Type[] fundamentalTypes = new Type[] {
-            // types that are the same as types4CodeGen
-            typeof(Boolean),
-            typeof(Char),
-            typeof(Int16),
-            typeof(UInt16),
-            typeof(Int32),
-            typeof(UInt32),
-            typeof(Int64),
-            typeof(UInt64),
-            typeof(Single),
-            typeof(Double),
-
-            // below are the types that I hand-coded
-            typeof(Byte),
-            typeof(SByte),
-            typeof(String),
-            typeof(byte[]),
-        };
-
-        static readonly Type[] serializableTypes = new Type[0];
-
-        static SerializationCodeGenerator()
-        {
-            serializableTypes = Assembly.GetExecutingAssembly().GetTypes()
-                .Where(type => type.GetCustomAttributes(typeof(SerializableAttribute), false).Length > 0)
-                .ToArray();
-        }
 
         static void GeneratePartialSerializationOutputClass(CodeGen.CodeBlock bodyNameSpace)
         {
@@ -141,10 +128,10 @@ namespace Serialization
             foreach (var type in serializableTypes)
             {
                 var bodySerializeMethod = bodySerializationOutputClass
-                    .AddLine($"public SerializationOutput Serialize({Utils.GetStringRep(type)} value)")
+                    .AddLine($"public SerializationOutput Serialize({GetStringRep(type)} value)")
                     .AddBlock();
                 bodySerializeMethod
-                    .AddLine($"return SerializationHelper_{Utils.GetNestedTypeName(type)}.Serialize(this, value);");
+                    .AddLine($"return SerializationHelper<{GetStringRep(type)}>.Serialize(this, value);");
             }
         }
 
@@ -172,12 +159,11 @@ namespace Serialization
             foreach (var type in serializableTypes)
             {
                 var bodyDeserializeMethod = bodySerializationInputClass
-                    .AddLine($"public SerializationInput Deserialize(out {Utils.GetStringRep(type)} value)")
+                    .AddLine($"public SerializationInput Deserialize(out {GetStringRep(type)} value)")
                     .AddBlock();
                 bodyDeserializeMethod.AddLine("position = stream.Position;");
-                bodyDeserializeMethod.AddLine($"value = default({Utils.GetStringRep(type)});");
                 bodyDeserializeMethod
-                    .AddLine($"return SerializationHelper_{Utils.GetNestedTypeName(type)}.Deserialize(this, ref value);");
+                    .AddLine($"return SerializationHelper<{GetStringRep(type)}>.Deserialize(this, out value);");
             }
         }
 
@@ -203,7 +189,7 @@ namespace Serialization
             foreach (var type in serializableTypes)
             {
                 bodyTypeSerializeMethodMapping
-                    .AddLine($"{{ typeof({Utils.GetStringRep(type)}), typeof(SerializationOutput).GetMethod(\"Serialize\", new[]{{typeof({Utils.GetStringRep(type)})}}) }},");
+                    .AddLine($"{{ typeof({GetStringRep(type)}), typeof(SerializationOutput).GetMethod(\"Serialize\", new[]{{typeof({GetStringRep(type)})}}) }},");
             }
 
             var bodyTypeDeserializeMethodMapping =
@@ -218,7 +204,7 @@ namespace Serialization
             foreach (var type in serializableTypes)
             {
                 bodyTypeDeserializeMethodMapping
-                    .AddLine($"{{ typeof({Utils.GetStringRep(type)}), typeof(SerializationInput).GetMethod(\"Deserialize\", new[]{{typeof({Utils.GetStringRep(type)}).MakeByRefType()}}) }},");
+                    .AddLine($"{{ typeof({GetStringRep(type)}), typeof(SerializationInput).GetMethod(\"Deserialize\", new[]{{typeof({GetStringRep(type)}).MakeByRefType()}}) }},");
             }
         }
 
@@ -250,10 +236,10 @@ namespace Serialization
             int idx = 0;
             foreach (var type in serializableTypes)
             {
-                bodySerializableTypes.AddLine($"typeof({Utils.GetStringRep(type)}),");
-                bodyTypeIndexMapping.AddLine($"{{ typeof({Utils.GetStringRep(type)}), {idx} }},");
-                bodyTypeIndexedSerializeDelegates.AddLine($"(SerializationOutput so, object o) => so.Serialize(({Utils.GetStringRep(type)})o),");
-                bodyTypeIndexedDeserializeDelegates.AddLine($"(SerializationInput si, out object o) => {{ {Utils.GetStringRep(type)} x; si.Deserialize(out x); o = x; return si; }},");
+                bodySerializableTypes.AddLine($"typeof({GetStringRep(type)}),");
+                bodyTypeIndexMapping.AddLine($"{{ typeof({GetStringRep(type)}), {idx} }},");
+                bodyTypeIndexedSerializeDelegates.AddLine($"(SerializationOutput so, object o) => so.Serialize(({GetStringRep(type)})o),");
+                bodyTypeIndexedDeserializeDelegates.AddLine($"(SerializationInput si, out object o) => {{ {GetStringRep(type)} x; si.Deserialize(out x); o = x; return si; }},");
 
                 ++idx;
             }
@@ -270,7 +256,7 @@ namespace Serialization
                 .AddBlock();
             foreach (var type in serializableTypes)
             {
-                bodyLoadAssemblyImplMethod.AddLine($"SerializationHelper<{Utils.GetStringRep(type)}>.LoadAssembly(module);");
+                bodyLoadAssemblyImplMethod.AddLine($"SerializationHelper<{GetStringRep(type)}>.LoadAssembly(module);");
             }
 
             var bodyCreateAssemblyImplMethod = bodyAssemblyManagerClass
@@ -278,7 +264,7 @@ namespace Serialization
                 .AddBlock();
             foreach (var type in serializableTypes)
             {
-                bodyCreateAssemblyImplMethod.AddLine($"SerializationHelper<{Utils.GetStringRep(type)}>.CreateAssembly(moduleBuilder);");
+                bodyCreateAssemblyImplMethod.AddLine($"SerializationHelper<{GetStringRep(type)}>.CreateAssembly(moduleBuilder);");
             }
         }
 
@@ -366,12 +352,12 @@ namespace Serialization
 
     public static partial class AssemblyManager
     {
-        // NB: This doesn NOT work for IL2CPP!
-        /* public */ static void LoadAssembly()
+        public static void LoadAssembly()
         {
             var assemblyName = new AssemblyName("Serialization");
             var assembly = Assembly.Load(assemblyName);
-            var module = assembly.GetModule("Serialization");
+            // var module = assembly.GetModule("Serialization"); -- doesn't work under il2cpp ...
+            var module = assembly.GetModules()[0]; // *** HACK ***
             LoadAssemblyImpl(module);
         }
 
@@ -397,12 +383,22 @@ namespace Serialization
         public delegate SerializationOutput Delegate_Serialize(SerializationOutput so, T o);
         public delegate SerializationInput Delegate_Deserialize(SerializationInput si, out T o);
 
-        /*public*/ static Delegate_Serialize Serialize; /* { get; private set; } */
-        /*public*/ static Delegate_Deserialize Deserialize; /* { get; private set; } */
+        public static Delegate_Serialize Serialize { get; private set; }
+        public static Delegate_Deserialize Deserialize { get; private set; }
+
+        static string GetNestedTypeName(Type type)
+        {
+            if (type.DeclaringType == null)
+            {
+                return type.Name;
+            }
+
+            return $"{GetNestedTypeName(type.DeclaringType)}_{type.Name}";
+        }
 
         public static void LoadAssembly(Module module)
         {
-            var type = module.GetType($"SerializationHelper_{Utils.GetNestedTypeName(typeof(T))}");
+            var type = module.GetType($"SerializationHelper_{GetNestedTypeName(typeof(T))}");
 
             var miSerialize = type.GetMethod("Serialize", new[] { typeof(SerializationOutput), typeof(T) });
             Serialize = (Delegate_Serialize)Delegate.CreateDelegate(typeof(Delegate_Serialize), miSerialize);
@@ -413,7 +409,7 @@ namespace Serialization
 
         public static void CreateAssembly(ModuleBuilder moduleBuilder)
         {
-            var typeBuilder = moduleBuilder.DefineType($"SerializationHelper_{Utils.GetNestedTypeName(typeof(T))}",
+            var typeBuilder = moduleBuilder.DefineType($"SerializationHelper_{GetNestedTypeName(typeof(T))}",
                 TypeAttributes.Public | TypeAttributes.Sealed | TypeAttributes.Abstract);
 
             var serializeMethodBuilder = typeBuilder.DefineMethod(
