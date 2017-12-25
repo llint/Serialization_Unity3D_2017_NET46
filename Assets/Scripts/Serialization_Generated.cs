@@ -34,12 +34,6 @@ namespace Serialization
             stream.Write(buffer, 0, buffer.Length);
             return this;
         }
-        public SerializationOutput Serialize(Int32 value)
-        {
-            var buffer = BitConverter.GetBytes(value);
-            stream.Write(buffer, 0, buffer.Length);
-            return this;
-        }
         public SerializationOutput Serialize(UInt32 value)
         {
             var buffer = BitConverter.GetBytes(value);
@@ -129,17 +123,6 @@ namespace Serialization
             }
             throw new SerializationException();
         }
-        public SerializationInput Deserialize(out Int32 value)
-        {
-            position = stream.Position;
-            var buffer = BitConverter.GetBytes(default(Int32));
-            if (stream.Read(buffer, 0, buffer.Length) == buffer.Length)
-            {
-                value = BitConverter.ToInt32(buffer, 0);
-                return this;
-            }
-            throw new SerializationException();
-        }
         public SerializationInput Deserialize(out UInt32 value)
         {
             position = stream.Position;
@@ -221,7 +204,6 @@ namespace Serialization
                 { typeof(Char), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(Char)}) },
                 { typeof(Int16), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(Int16)}) },
                 { typeof(UInt16), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(UInt16)}) },
-                { typeof(Int32), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(Int32)}) },
                 { typeof(UInt32), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(UInt32)}) },
                 { typeof(Int64), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(Int64)}) },
                 { typeof(UInt64), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(UInt64)}) },
@@ -229,6 +211,7 @@ namespace Serialization
                 { typeof(Double), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(Double)}) },
                 { typeof(Byte), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(Byte)}) },
                 { typeof(SByte), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(SByte)}) },
+                { typeof(Int32), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(Int32)}) },
                 { typeof(String), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(String)}) },
                 { typeof(Byte[]), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(Byte[])}) },
                 { typeof(Base), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(Base)}) },
@@ -241,7 +224,6 @@ namespace Serialization
                 { typeof(Char), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(Char).MakeByRefType()}) },
                 { typeof(Int16), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(Int16).MakeByRefType()}) },
                 { typeof(UInt16), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(UInt16).MakeByRefType()}) },
-                { typeof(Int32), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(Int32).MakeByRefType()}) },
                 { typeof(UInt32), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(UInt32).MakeByRefType()}) },
                 { typeof(Int64), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(Int64).MakeByRefType()}) },
                 { typeof(UInt64), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(UInt64).MakeByRefType()}) },
@@ -249,6 +231,7 @@ namespace Serialization
                 { typeof(Double), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(Double).MakeByRefType()}) },
                 { typeof(Byte), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(Byte).MakeByRefType()}) },
                 { typeof(SByte), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(SByte).MakeByRefType()}) },
+                { typeof(Int32), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(Int32).MakeByRefType()}) },
                 { typeof(String), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(String).MakeByRefType()}) },
                 { typeof(Byte[]), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(Byte[]).MakeByRefType()}) },
                 { typeof(Base), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(Base).MakeByRefType()}) },

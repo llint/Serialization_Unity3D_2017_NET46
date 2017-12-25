@@ -19,7 +19,6 @@ namespace Serialization
             typeof(Char),
             typeof(Int16),
             typeof(UInt16),
-            typeof(Int32),
             typeof(UInt32),
             typeof(Int64),
             typeof(UInt64),
@@ -33,7 +32,6 @@ namespace Serialization
             typeof(Char),
             typeof(Int16),
             typeof(UInt16),
-            typeof(Int32),
             typeof(UInt32),
             typeof(Int64),
             typeof(UInt64),
@@ -43,6 +41,7 @@ namespace Serialization
             // below are the types that I hand-coded
             typeof(Byte),
             typeof(SByte),
+            typeof(Int32),
             typeof(String),
             typeof(byte[]),
         };
@@ -881,10 +880,17 @@ namespace Serialization
             return this;
         }
 
+        public SerializationOutput Serialize(Int32 value)
+        {
+            var buffer = BitConverter.GetBytes(value);
+            stream.Write(buffer, 0, buffer.Length);
+            return this;
+        }
+
         public SerializationOutput Serialize(String s)
         {
             var buffer = Encoding.UTF8.GetBytes(s);
-            Serialize((Int16)buffer.Length);
+            Serialize(buffer.Length);
             stream.Write(buffer, 0, buffer.Length);
             return this;
         }
@@ -950,10 +956,22 @@ namespace Serialization
             return this;
         }
 
+        public SerializationInput Deserialize(out Int32 value)
+        {
+            position = stream.Position;
+            var buffer = BitConverter.GetBytes(default(Int32));
+            if (stream.Read(buffer, 0, buffer.Length) == buffer.Length)
+            {
+                value = BitConverter.ToInt32(buffer, 0);
+                return this;
+            }
+            throw new SerializationException();
+        }
+
         public SerializationInput Deserialize(out String value)
         {
             position = stream.Position;
-            UInt16 len = 0;
+            int len = 0;
             Deserialize(out len);
             var buffer = new byte[len];
             if (stream.Read(buffer, 0, buffer.Length) == buffer.Length)
