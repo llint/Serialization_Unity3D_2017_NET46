@@ -55,57 +55,52 @@ namespace Serialization
                 .ToArray();
         }
 
-        static string GetStringRep(Type t, bool processDeclaringType = true)
+        static string GetTypeStringRep(Type t, bool processDeclaringType = true)
         {
             if (t.IsArray)
             {
-                return GetStringRep(t.GetElementType()) + "[]";
+                return GetTypeStringRep(t.GetElementType()) + "[]";
             }
             if (t.IsGenericType)
             {
                 var genericArgs = t.GetGenericArguments().ToList();
 
-                return GetStringRep(t, genericArgs);
+                return GetTypeStringRep(t, genericArgs);
             }
             if (processDeclaringType && t.DeclaringType != null)
             {
-                return GetStringRep(t.DeclaringType) + "." + GetStringRep(t, false);
+                return GetTypeStringRep(t.DeclaringType) + "." + GetTypeStringRep(t, false);
             }
 
             return t.Name;
         }
 
-        static string GetStringRep(Type t, List<Type> availableArguments)
+        static string GetTypeStringRep(Type t, List<Type> genericArgs)
         {
-            if (t.IsGenericType)
+            string value = t.Name;
+            if (value.IndexOf("`") > -1)
             {
-                string value = t.Name;
-                if (value.IndexOf("`") > -1)
-                {
-                    value = value.Substring(0, value.IndexOf("`"));
-                }
-
-                // Build the type arguments (if any)
-                string argString = "";
-                var thisTypeArgs = t.GetGenericArguments();
-                for (int i = 0; i < thisTypeArgs.Length && availableArguments.Count > 0; i++)
-                {
-                    if (i != 0) argString += ", ";
-
-                    argString += GetStringRep(availableArguments[0]);
-                    availableArguments.RemoveAt(0);
-                }
-
-                // If there are type arguments, add them with < >
-                if (argString.Length > 0)
-                {
-                    value += "<" + argString + ">";
-                }
-
-                return value;
+                value = value.Substring(0, value.IndexOf("`"));
             }
 
-            return t.Name;
+            // Build the type arguments (if any)
+            string argString = "";
+            var thisTypeArgs = t.GetGenericArguments();
+            for (int i = 0; i < thisTypeArgs.Length && genericArgs.Count > 0; i++)
+            {
+                if (i != 0) argString += ", ";
+
+                argString += GetTypeStringRep(genericArgs[0]);
+                genericArgs.RemoveAt(0);
+            }
+
+            // If there are type arguments, add them with < >
+            if (argString.Length > 0)
+            {
+                value += "<" + argString + ">";
+            }
+
+            return value;
         }
 
         static void GeneratePartialSerializationOutputClass(CodeGen.CodeBlock bodyNameSpace)
@@ -127,10 +122,10 @@ namespace Serialization
             foreach (var type in serializableTypes)
             {
                 var bodySerializeMethod = bodySerializationOutputClass
-                    .AddLine($"public SerializationOutput Serialize({GetStringRep(type)} value)")
+                    .AddLine($"public SerializationOutput Serialize({GetTypeStringRep(type)} value)")
                     .AddBlock();
                 bodySerializeMethod
-                    .AddLine($"return SerializationHelper<{GetStringRep(type)}>.Serialize(this, value);");
+                    .AddLine($"return SerializationHelper<{GetTypeStringRep(type)}>.Serialize(this, value);");
             }
         }
 
@@ -158,11 +153,11 @@ namespace Serialization
             foreach (var type in serializableTypes)
             {
                 var bodyDeserializeMethod = bodySerializationInputClass
-                    .AddLine($"public SerializationInput Deserialize(out {GetStringRep(type)} value)")
+                    .AddLine($"public SerializationInput Deserialize(out {GetTypeStringRep(type)} value)")
                     .AddBlock();
                 bodyDeserializeMethod.AddLine("position = stream.Position;");
                 bodyDeserializeMethod
-                    .AddLine($"return SerializationHelper<{GetStringRep(type)}>.Deserialize(this, out value);");
+                    .AddLine($"return SerializationHelper<{GetTypeStringRep(type)}>.Deserialize(this, out value);");
             }
         }
 
@@ -188,7 +183,7 @@ namespace Serialization
             foreach (var type in serializableTypes)
             {
                 bodyTypeSerializeMethodMapping
-                    .AddLine($"{{ typeof({GetStringRep(type)}), typeof(SerializationOutput).GetMethod(\"Serialize\", new[]{{typeof({GetStringRep(type)})}}) }},");
+                    .AddLine($"{{ typeof({GetTypeStringRep(type)}), typeof(SerializationOutput).GetMethod(\"Serialize\", new[]{{typeof({GetTypeStringRep(type)})}}) }},");
             }
 
             var bodyTypeDeserializeMethodMapping =
@@ -203,7 +198,7 @@ namespace Serialization
             foreach (var type in serializableTypes)
             {
                 bodyTypeDeserializeMethodMapping
-                    .AddLine($"{{ typeof({GetStringRep(type)}), typeof(SerializationInput).GetMethod(\"Deserialize\", new[]{{typeof({GetStringRep(type)}).MakeByRefType()}}) }},");
+                    .AddLine($"{{ typeof({GetTypeStringRep(type)}), typeof(SerializationInput).GetMethod(\"Deserialize\", new[]{{typeof({GetTypeStringRep(type)}).MakeByRefType()}}) }},");
             }
         }
 
@@ -235,10 +230,10 @@ namespace Serialization
             int idx = 0;
             foreach (var type in serializableTypes)
             {
-                bodySerializableTypes.AddLine($"typeof({GetStringRep(type)}),");
-                bodyTypeIndexMapping.AddLine($"{{ typeof({GetStringRep(type)}), {idx} }},");
-                bodyTypeIndexedSerializeDelegates.AddLine($"(SerializationOutput so, object o) => so.Serialize(({GetStringRep(type)})o),");
-                bodyTypeIndexedDeserializeDelegates.AddLine($"(SerializationInput si, out object o) => {{ {GetStringRep(type)} x; si.Deserialize(out x); o = x; return si; }},");
+                bodySerializableTypes.AddLine($"typeof({GetTypeStringRep(type)}),");
+                bodyTypeIndexMapping.AddLine($"{{ typeof({GetTypeStringRep(type)}), {idx} }},");
+                bodyTypeIndexedSerializeDelegates.AddLine($"(SerializationOutput so, object o) => so.Serialize(({GetTypeStringRep(type)})o),");
+                bodyTypeIndexedDeserializeDelegates.AddLine($"(SerializationInput si, out object o) => {{ {GetTypeStringRep(type)} x; si.Deserialize(out x); o = x; return si; }},");
 
                 ++idx;
             }
@@ -255,7 +250,7 @@ namespace Serialization
                 .AddBlock();
             foreach (var type in serializableTypes)
             {
-                bodyLoadAssemblyImplMethod.AddLine($"SerializationHelper<{GetStringRep(type)}>.LoadAssembly(module);");
+                bodyLoadAssemblyImplMethod.AddLine($"SerializationHelper<{GetTypeStringRep(type)}>.LoadAssembly(module);");
             }
 
             var bodyCreateAssemblyImplMethod = bodyAssemblyManagerClass
@@ -263,7 +258,7 @@ namespace Serialization
                 .AddBlock();
             foreach (var type in serializableTypes)
             {
-                bodyCreateAssemblyImplMethod.AddLine($"SerializationHelper<{GetStringRep(type)}>.CreateAssembly(moduleBuilder);");
+                bodyCreateAssemblyImplMethod.AddLine($"SerializationHelper<{GetTypeStringRep(type)}>.CreateAssembly(moduleBuilder);");
             }
         }
 
