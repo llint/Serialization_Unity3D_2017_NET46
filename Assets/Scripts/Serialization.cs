@@ -79,7 +79,9 @@ namespace Serialization
                 return GetTypeStringRep(t.DeclaringType) + "." + GetTypeStringRep(t, false);
             }
 
-            return t.Name;
+            var prefix = string.IsNullOrEmpty(t.Namespace) ? "" : t.Namespace + ".";
+
+            return prefix + t.Name;
         }
 
         static string GetTypeStringRep(Type t, List<Type> genericArgs)
