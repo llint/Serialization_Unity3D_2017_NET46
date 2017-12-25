@@ -7,16 +7,16 @@ using Serialization;
 
 public class MenuItems
 {
-    [MenuItem("Tools/Serialization CodeGen")]
+    [MenuItem("Tools/Serialization/CodeGen")]
     private static void GenerateCode()
     {
         SerializationCodeGenerator
             .GenerateCode(Path.Combine(Application.dataPath, "Scripts/Serialization_Generated.cs"));
     }
 
-    [MenuItem("Tools/Serialization CreateAssembly")]
+    [MenuItem("Tools/Serialization/CreateAssembly")]
     private static void CreateAssembly()
     {
-        Serialization.AssemblyManager.CreateAssembly();
+        Serialization.AssemblyManager.CreateAssembly(Path.Combine(Application.dataPath, "Assemblies"));
     }
 }

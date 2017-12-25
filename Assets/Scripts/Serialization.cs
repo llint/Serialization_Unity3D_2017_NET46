@@ -52,6 +52,7 @@ namespace Serialization
         {
             serializableTypes = Assembly.GetExecutingAssembly().GetTypes()
                 .Where(type => type.GetCustomAttributes(typeof(SerializableAttribute), false).Length > 0)
+                .Where(type => !type.IsGenericTypeDefinition)
                 .ToArray();
         }
 
@@ -61,7 +62,7 @@ namespace Serialization
             {
                 return GetTypeStringRep(t.GetElementType()) + "[]";
             }
-            if (t.IsGenericType)
+            if (t.IsGenericType && t.IsConstructedGenericType)
             {
                 var genericArgs = t.GetGenericArguments().ToList();
 
@@ -357,13 +358,13 @@ namespace Serialization
 
         static partial void LoadAssemblyImpl(Module module);
 
-        public static void CreateAssembly()
+        public static void CreateAssembly(string dir)
         {
             var assemblyName = new AssemblyName("Serialization");
             var assemblyBuilder = AppDomain.CurrentDomain.DefineDynamicAssembly(
                 assemblyName,
                 AssemblyBuilderAccess.RunAndSave,
-                Path.Combine(Application.dataPath, "Assemblies"));
+                dir);
             var moduleBuilder = assemblyBuilder.DefineDynamicModule("Serialization", "Serialization.dll");
             CreateAssemblyImpl(moduleBuilder);
             assemblyBuilder.Save("Serialization.dll");
