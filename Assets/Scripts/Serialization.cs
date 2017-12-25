@@ -12,6 +12,11 @@ using UnityEngine;
 
 namespace Serialization
 {
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
+    public class SerializableTypeAttribute : Attribute
+    {
+    }
+
     public static class SerializationCodeGenerator
     {
         static readonly Type[] types4CodeGen = new Type[] {
@@ -46,12 +51,13 @@ namespace Serialization
             typeof(byte[]),
         };
 
+        // types that are marked with [SerializableType] attribute
         static readonly Type[] serializableTypes = new Type[0];
 
         static SerializationCodeGenerator()
         {
             serializableTypes = Assembly.GetExecutingAssembly().GetTypes()
-                .Where(type => type.GetCustomAttributes(typeof(SerializableAttribute), false).Length > 0)
+                .Where(type => type.GetCustomAttributes(typeof(SerializableTypeAttribute), false).Length > 0)
                 .Where(type => !type.IsGenericTypeDefinition)
                 .ToArray();
         }

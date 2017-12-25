@@ -41,6 +41,7 @@ static class Helpers
     }
 }
 
+[Serialization.SerializableType]
 [Serializable]
 public class Base
 {
@@ -68,6 +69,7 @@ public class Base
 	}
 }
 
+[Serialization.SerializableType]
 [Serializable]
 public class Derived : Base
 {
@@ -79,6 +81,7 @@ public class Derived : Base
     }
 }
 
+[Serialization.SerializableType]
 [Serializable]
 public struct Struct
 {
