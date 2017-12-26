@@ -41,6 +41,11 @@ static class Helpers
     }
 }
 
+public class Wrapper<T>
+{
+    public T t;
+}
+
 [Serialization.SerializableType]
 [Serializable]
 public class Base

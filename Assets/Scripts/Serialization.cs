@@ -52,14 +52,15 @@ namespace Serialization
         };
 
         // types that are marked with [SerializableType] attribute
-        static readonly Type[] serializableTypes = new Type[0];
+        static readonly HashSet<Type> serializableTypes = new HashSet<Type>();
 
         static SerializationCodeGenerator()
         {
-            serializableTypes = Assembly.GetExecutingAssembly().GetTypes()
+            serializableTypes.UnionWith(Assembly.GetExecutingAssembly().GetTypes()
                 .Where(type => type.GetCustomAttributes(typeof(SerializableTypeAttribute), false).Length > 0)
-                .Where(type => !type.IsGenericTypeDefinition)
-                .ToArray();
+                .Where(type => !type.IsGenericTypeDefinition));
+
+            serializableTypes.UnionWith(RegisterSerializableTypes.Retrieve());
         }
 
         static string GetTypeStringRep(Type t, bool processDeclaringType = true)

@@ -76,6 +76,10 @@ namespace Serialization
         {
             return SerializationHelper<Struct>.Serialize(this, value);
         }
+        public SerializationOutput Serialize(Wrapper<System.Int32> value)
+        {
+            return SerializationHelper<Wrapper<System.Int32>>.Serialize(this, value);
+        }
     }
     public partial class SerializationInput
     {
@@ -193,6 +197,11 @@ namespace Serialization
             position = stream.Position;
             return SerializationHelper<Struct>.Deserialize(this, out value);
         }
+        public SerializationInput Deserialize(out Wrapper<System.Int32> value)
+        {
+            position = stream.Position;
+            return SerializationHelper<Wrapper<System.Int32>>.Deserialize(this, out value);
+        }
     }
     public static partial class TypeSerializationMethodMapping
     {
@@ -217,6 +226,7 @@ namespace Serialization
                 { typeof(Base), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(Base)}) },
                 { typeof(Derived), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(Derived)}) },
                 { typeof(Struct), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(Struct)}) },
+                { typeof(Wrapper<System.Int32>), typeof(SerializationOutput).GetMethod("Serialize", new[]{typeof(Wrapper<System.Int32>)}) },
             };
             TypeDeserializeMethodMapping = new Dictionary<Type, MethodInfo>
             {
@@ -237,6 +247,7 @@ namespace Serialization
                 { typeof(Base), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(Base).MakeByRefType()}) },
                 { typeof(Derived), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(Derived).MakeByRefType()}) },
                 { typeof(Struct), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(Struct).MakeByRefType()}) },
+                { typeof(Wrapper<System.Int32>), typeof(SerializationInput).GetMethod("Deserialize", new[]{typeof(Wrapper<System.Int32>).MakeByRefType()}) },
             };
         }
     }
@@ -249,24 +260,28 @@ namespace Serialization
                 typeof(Base),
                 typeof(Derived),
                 typeof(Struct),
+                typeof(Wrapper<System.Int32>),
             };
             typeIndexMapping = new Dictionary<Type, int>
             {
                 { typeof(Base), 0 },
                 { typeof(Derived), 1 },
                 { typeof(Struct), 2 },
+                { typeof(Wrapper<System.Int32>), 3 },
             };
             typeIndexedSerializeDelegates = new Serialize[]
             {
                 (SerializationOutput so, object o) => so.Serialize((Base)o),
                 (SerializationOutput so, object o) => so.Serialize((Derived)o),
                 (SerializationOutput so, object o) => so.Serialize((Struct)o),
+                (SerializationOutput so, object o) => so.Serialize((Wrapper<System.Int32>)o),
             };
             typeIndexedDeserializeDelegates = new Deserialize[]
             {
                 (SerializationInput si, out object o) => { Base x; si.Deserialize(out x); o = x; return si; },
                 (SerializationInput si, out object o) => { Derived x; si.Deserialize(out x); o = x; return si; },
                 (SerializationInput si, out object o) => { Struct x; si.Deserialize(out x); o = x; return si; },
+                (SerializationInput si, out object o) => { Wrapper<System.Int32> x; si.Deserialize(out x); o = x; return si; },
             };
         }
     }
@@ -277,12 +292,14 @@ namespace Serialization
             SerializationHelper<Base>.LoadAssembly(module);
             SerializationHelper<Derived>.LoadAssembly(module);
             SerializationHelper<Struct>.LoadAssembly(module);
+            SerializationHelper<Wrapper<System.Int32>>.LoadAssembly(module);
         }
         static partial void CreateAssemblyImpl(ModuleBuilder moduleBuilder)
         {
             SerializationHelper<Base>.CreateAssembly(moduleBuilder);
             SerializationHelper<Derived>.CreateAssembly(moduleBuilder);
             SerializationHelper<Struct>.CreateAssembly(moduleBuilder);
+            SerializationHelper<Wrapper<System.Int32>>.CreateAssembly(moduleBuilder);
         }
     }
 }
