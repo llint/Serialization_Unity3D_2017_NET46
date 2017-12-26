@@ -55,6 +55,7 @@ public class Base
     // - [NonSerialized] with 'public' - not touched, no exception
     // - 'public' - throws null reference exception
     // [SerializeField]
+    [Serialization.Serialize(false)]
     [NonSerialized]
     public string ps;
 

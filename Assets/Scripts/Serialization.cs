@@ -12,9 +12,20 @@ using UnityEngine;
 
 namespace Serialization
 {
-    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, AllowMultiple = false)]
     public class SerializableTypeAttribute : Attribute
     {
+    }
+
+    [AttributeUsage(AttributeTargets.Field, AllowMultiple = false)]
+    public class SerializeAttribute : Attribute
+    {
+        public bool Enabled { get; }
+
+        public SerializeAttribute(bool enabled = true)
+        {
+            Enabled = enabled;
+        }
     }
 
     public static class SerializationCodeGenerator
@@ -595,12 +606,13 @@ namespace Serialization
 
                 foreach (var fi in type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
                 {
-                    if (Attribute.GetCustomAttributes(fi, typeof(NonSerializedAttribute)).Any())
+                    var serializeAttribute = (SerializeAttribute)Attribute.GetCustomAttributes(
+                        fi, typeof(SerializeAttribute)).FirstOrDefault();
+                    if (serializeAttribute != null && !serializeAttribute.Enabled)
                     {
                         continue;
                     }
-
-                    if (!fi.IsPublic && !Attribute.GetCustomAttributes(fi, typeof(UnityEngine.SerializeField)).Any())
+                    if (serializeAttribute == null && !fi.IsPublic)
                     {
                         continue;
                     }
@@ -824,12 +836,13 @@ namespace Serialization
 
                 foreach (var fi in type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
                 {
-                    if (Attribute.GetCustomAttributes(fi, typeof(NonSerializedAttribute)).Any())
+                    var serializeAttribute = (SerializeAttribute)Attribute.GetCustomAttributes(
+                        fi, typeof(SerializeAttribute)).FirstOrDefault();
+                    if (serializeAttribute != null && !serializeAttribute.Enabled)
                     {
                         continue;
                     }
-
-                    if (!fi.IsPublic && !Attribute.GetCustomAttributes(fi, typeof(UnityEngine.SerializeField)).Any())
+                    if (serializeAttribute == null && !fi.IsPublic)
                     {
                         continue;
                     }
